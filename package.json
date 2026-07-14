@@ -1,0 +1,41 @@
+{
+  "name": "match-horizon",
+  "version": "1.0.0",
+  "description": "Match Horizon helps a user compare live sports-market probabilities with their own beliefs, identify the largest disagreement, and watch that view resolve against verified TxLINE match data.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "txline:probe": "tsx scripts/txline-probe.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielTabakman/match-horizon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DanielTabakman/match-horizon/issues"
+  },
+  "homepage": "https://github.com/DanielTabakman/match-horizon#readme",
+  "dependencies": {
+    "next": "^16.2.10",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

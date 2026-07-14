@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light;
+  background: #f7f7f4;
+  color: #1b1b18;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding: 48px;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+p {
+  max-width: 560px;
+  line-height: 1.5;
+}
