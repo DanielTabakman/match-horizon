@@ -13,13 +13,13 @@ Use devnet first.
 - TxL devnet mint: `4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG`
 - Free service level: `1`
 
-The API host should be derived from `TXLINE_NETWORK`; do not configure an independent host unless a documented override is explicitly needed.
+The API host is derived from `TXLINE_NETWORK`; do not configure an independent host unless a documented advanced override is explicitly needed.
 
 ## Safety
 
 - Use a fresh disposable devnet wallet.
 - Never paste a seed phrase, wallet JSON, guest JWT, activated API token, or authorization header into GitHub, a prompt, or a support channel.
-- Keep the wallet file outside the repository.
+- Keep the wallet file outside this repository.
 - Keep the activated API token only in `.env.local` or a secure secret store.
 - Do not use Autobuilder.
 
@@ -60,13 +60,6 @@ TXLINE_DEMO_FIXTURE_ID=
 ```
 
 Do not commit this file.
-
-The application should derive:
-
-```text
-mainnet -> https://txline.txodds.com
-devnet  -> https://txline-dev.txodds.com
-```
 
 ## Live probe
 
