@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-14T18:32:42.205Z",
+  "recordCount": 9,
+  "representativeKeys": [
+    "Action",
+    "CompetitionId",
+    "ConnectionId",
+    "CountryId",
+    "Data",
+    "FixtureGroupId",
+    "FixtureId",
+    "GameState",
+    "Id",
+    "IsTeam",
+    "Participant1Id",
+    "Participant1IsHome",
+    "Participant2Id",
+    "Seq",
+    "SportId",
+    "StartTime",
+    "Stats",
+    "Ts"
+  ],
+  "sample": [
+    {
+      "FixtureId": 18237038,
+      "GameState": "scheduled",
+      "StartTime": 1784055600000,
+      "IsTeam": true,
+      "FixtureGroupId": 10115573,
+      "CompetitionId": 72,
+      "CountryId": 466,
+      "SportId": 1,
+      "Participant1IsHome": true,
+      "Participant2Id": 3021,
+      "Participant1Id": 1999,
+      "Action": "comment",
+      "Id": 1,
+      "Ts": 1783718371807,
+      "ConnectionId": 1081,
+      "Seq": 1,
+      "Data": {},
+      "Stats": {}
+    },
+    {
+      "FixtureId": 18237038,
+      "GameState": "scheduled",
+      "StartTime": 1784055600000,
+      "IsTeam": true,
+      "FixtureGroupId": 10115573,
+      "CompetitionId": 72,
+      "CountryId": 466,
+      "SportId": 1,
+      "Participant1IsHome": true,
+      "Participant2Id": 3021,
+      "Participant1Id": 1999,
+      "CoverageSecondaryData": true,
+      "CoverageType": "TV/Stream",
+      "Action": "connected",
+      "Id": 2,
+      "Ts": 1784052182517,
+      "ConnectionId": 1110,
+      "Seq": 2,
+      "Confirmed": true,
+      "Stats": {}
+    },
+    {
+      "FixtureId": 18237038,
+      "GameState": "scheduled",
+      "StartTime": 1784055600000,
+      "IsTeam": true,
+      "FixtureGroupId": 10115573,
+      "CompetitionId": 72,
+      "CountryId": 466,
+      "SportId": 1,
+      "Participant1IsHome": true,
+      "Participant2Id": 3021,
+      "Participant1Id": 1999,
+      "Action": "coverage_update",
+      "Id": 0,
+      "Ts": 1783718371797,
+      "ConnectionId": 1081,
+      "Seq": 0,
+      "Data": {},
+      "Stats": {}
+    },
+    {
+      "FixtureId": 18237038,
+      "GameState": "scheduled",
+      "StartTime": 1784055600000,
+      "IsTeam": true,
+      "FixtureGroupId": 10115573,
+      "CompetitionId": 72,
+      "CountryId": 466,
+      "SportId": 1,
+      "Participant1IsHome": true,
+      "Participant2Id": 3021,
+      "Participant1Id": 1999,
+      "CoverageSecondaryData": true,
+      "CoverageType": "TV/Stream",
+      "Action": "jersey",
+      "Id": 22,
+      "Ts": 1784053484597,
+      "ConnectionId": 1111,
+      "Seq": 13,
+      "StatusId": 1,
+      "Type": "Soccer",
+      "Clock": {
+        "Running": false,
+        "Seconds": 0
+      },
+      "Data": {
+        "Color": "white"
+      },
+      "Stats": {},
+      "Participant": 2
+    },
+    {
+      "FixtureId": 18237038,
+      "GameState": "scheduled",
+      "StartTime": 1784055600000,
+      "IsTeam": true,
+      "FixtureGroupId": 10115573,
+      "CompetitionId": 72,
+      "CountryId": 466,
+      "SportId": 1,
+      "Participant1IsHome": true,
+      "Participant2Id": 3021,
+      "Participant1Id": 1999,
+      "CoverageSecondaryData": true,
+      "CoverageType": "TV/Stream",
+      "Action": "lineups",
+      "Id": 20,
+      "Ts": 1784052766510,
+      "ConnectionId": 1112,
+      "Seq": 12,
+      "Confirmed": true,
+      "Stats": {},
+      "Lineups": [
+        {
+          "id": "00000000-0000-0005-0000-0000000007cf",
+          "normativeId": 1999,
+          "preferredName": "France",
+          "gender": "male",
+          "updateDateMillis": 1721305970877,
+          "lineups": [
+            {
+              "fixturePlayerId": 840610,
+              "statusId": 0,
+              "positionId": 37,
+              "unitId": 0,
+              "rosterNumber": "25",
+              "starter": false,
+              "starred": false,
+              "player": {
+                "id": "d428a307-e3e7-4784-a93e-a51cfe164d93",
+                "normativeId": 10092796,
+                "country": "France",
+                "team": "00000000-0000-0005-0000-0000000005dc,00000000-0000-0005-0000-0000000007cf",
+                "dateOfBirth": "2002-02-25",
+                "gender": "male",
+                "preferredName": "Akliouche, Maghnes",
+                "updateDateMillis": 1780405584965
+              }
+            },
+            {
+              "fixturePlayerId": 840612,
+              "statusId": 0,
+              "positionId": 37,
+              "unitId": 0,
+              "rosterNumber": "12",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "d15e5819-bad2-499b-8ea1-b271caaa2ea0",
+                "normativeId": 10096031,
+                "country": "France",
+                "team": "00000000-0000-0005-0000-000000000ab8,00000000-0000-0005-0000-0000000007cf",
+                "dateOfBirth": "2002-09-02",
+                "gender": "male",
+                "preferredName": "Barcola, Bradley",
+                "updateDateMillis": 1779496510695
+              }
+            },
+            {
+              "fixturePlayerId": 840614,
+              "statusId": 0,
+              "positionId": 36,
+              "unitId": 0,
+              "rosterNumber": "24",
+              "starter": false,
+              "starred": false,
+              "player": {
+                "id": "00000000-0000-0004-0000-00000012677b",
+                "normativeId": 1206139,
+                "country": "France",
+                "team": "00000000-0000-0005-0000-0000000009d7,00000000-0000-0005-0000-0000000007cf",
+                "dateOfBirth": "2003-08-17",
+                "gender": "male",
+                "preferredName": "Cherki, Mathis Rayan",
+                "updateDateMillis": 1780405568357
+              }
+            },
+            {
+              "fixturePlayerId": 840617,
+              "statusId": 0,
+              "positionId": 37,
+              "unitId": 0,
+              "rosterNumber": "7",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "00000000-0000-0004-0000-000000064fec",
+                "normativeId": 413676,
+                "country": "France",
+                "team": "00000000-0000-0005-0000-000000000ab8,00000000-0000-0005-0000-0000000007cf",
+                "dateOfBirth": "1997-05-15",
+                "gender": "male",
+                "preferredName": "Dembele, Ousmane",
+                "updateDateMillis": 1780405179548
+              }
+            },
+            {
+              "fixturePlayerId": 840618,
+              "statusId": 0,
+              "positionId": 35,
+              "unitId": 0,
+              "rosterNumber": "3",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "00000000-0000-0004-0000-00000000c57c",
+                "normativeId": 50556,
+                "country": "France",
+                "team": "00000000-0000-0005-0000-0000000005e2,00000000-0000-0005-0000-0000000007cf",
+                "dateOfBirth": "1993-07-20",
+                "gender": "male",
+                "preferredName": "Digne, Lucas",
+                "updateDateMillis": 1780405084745
+              }
+            }
+          ]
+        },
+        {
+          "id": "00000000-0000-0005-0000-000000000bcd",
+          "normativeId": 3021,
+          "preferredName": "Spain",
+          "gender": "male",
+          "updateDateMillis": 1721307673896,
+          "lineups": [
+            {
+              "fixturePlayerId": 840654,
+              "statusId": 0,
+              "positionId": 36,
+              "unitId": 0,
+              "rosterNumber": "15",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "09c8ce08-e4ee-42df-85ad-f8142c268939",
+                "normativeId": 10008043,
+                "country": "Spain",
+                "team": "00000000-0000-0005-0000-0000000005e6,00000000-0000-0005-0000-000000000bcd",
+                "dateOfBirth": "2001-07-20",
+                "gender": "male",
+                "preferredName": "Baena, Alex",
+                "updateDateMillis": 1780386308875
+              }
+            },
+            {
+              "fixturePlayerId": 840659,
+              "statusId": 0,
+              "positionId": 35,
+              "unitId": 0,
+              "rosterNumber": "22",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "643a232a-f7ca-432d-81e0-2122a4326a62",
+                "normativeId": 10093448,
+                "country": "Spain",
+                "team": "00000000-0000-0005-0000-000000000610,00000000-0000-0005-0000-000000000bcd",
+                "dateOfBirth": "2007-01-22",
+                "gender": "male",
+                "preferredName": "Cubarsi, Pau",
+                "updateDateMillis": 1780386493230
+              }
+            },
+            {
+              "fixturePlayerId": 840660,
+              "statusId": 0,
+              "positionId": 35,
+              "unitId": 0,
+              "rosterNumber": "24",
+              "starter": true,
+              "starred": false,
+              "player": {
+                "id": "00000000-0000-0004-0000-000000063edb",
+                "normativeId": 409307,
+                "country": "Spain",
+                "team": "00000000-0000-0005-0000-000000000bcd,00000000-0000-0005-0000-000000000b1d",
+                "dateOfBirth": "1998-07-22",
+                "gender": "male",
+                "preferredName": "Cucurella Saseta, Marc",
+                "updateDateMillis": 1782993968810
+              }
+            },
+            {
+              "fixturePlayerId": 840663,
+              "statusId": 0,
+              "positionId": 35,
+              "unitId": 0,
+              "rosterNumber": "4",
+              "starter": false,
+              "starred": false,
+              "player": {
+                "id": "00000000-0000-0004-0000-0000000d9176",
+                "normativeId": 889206,
+                "country": "Spain",
+                "team": "00000000-0000-0005-0000-000000000610,00000000-0000-0005-0000-000000000bcd",
+                "dateOfBirth": "2001-01-09",
+                "gender": "male",
+                "preferredName": "Garcia Martret, Eric",
+                "updateDateMillis": 1780386000615
+              }
+            },
+            {
+              "fixturePlayerId": 840668,
+              "statusId": 0,
+              "positionId": 34,
+              "unitId": 0,
+              "rosterNumber": "13",
+              "starter": false,
+              "starred": false,
+              "player": {
+                "id": "7f1ef913-30bb-40e7-bfd1-6a40badbf671",
+                "normativeId": 10096213,
+                "country": "Spain",
+                "team": "00000000-0000-0005-0000-000000000610,00000000-0000-0005-0000-000000000bcd",
+                "dateOfBirth": "2001-05-04",
+                "gender": "male",
+                "preferredName": "Garcia, Joan",
+                "updateDateMillis": 1779721512882
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
