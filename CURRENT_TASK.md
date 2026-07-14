@@ -16,14 +16,18 @@ Reported checks:
 - Lint passed
 - Ten tests passed
 - Production build passed
-- The probe correctly stopped at `missing_configuration`
+- Live TxLINE probe passed on devnet at `2026-07-14T18:32:42.205Z`
 
 The configuration hardening is complete: `apiOrigin` is derived from `TXLINE_NETWORK`, and the only normal required configuration is:
 
 - `TXLINE_NETWORK`
 - `TXLINE_API_TOKEN`
 
-The live-data acceptance gate remains open because no activated TxLINE API token has been supplied and no real payload has been captured.
+The live-data acceptance gate passed with sanitized captured samples:
+
+- 7 fixture records, including World Cup fixture `18237038` (`France` vs `Spain`)
+- 29 fixture-specific odds records for fixture `18237038`
+- 9 score/event records for fixture `18237038`
 
 ## Operating instruction
 
@@ -79,7 +83,7 @@ npm test
 npm run build
 ```
 
-Commit and push the captured sanitized samples and any evidence-backed adapter corrections to the existing PR #6 branch. Keep the PR in draft until the live-data gate passes.
+Commit and push the captured sanitized samples and any evidence-backed adapter corrections to the existing PR #6 branch. Mark PR #6 ready for review after the live-data gate and checks pass.
 
 ## Stop condition
 

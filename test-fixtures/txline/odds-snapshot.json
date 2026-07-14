@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-14T18:32:42.205Z",
+  "capturedAt": "2026-07-14T18:42:08.439Z",
   "recordCount": 29,
   "representativeKeys": [
     "Bookmaker",
@@ -20,8 +20,8 @@
   "sample": [
     {
       "FixtureId": 18237038,
-      "MessageId": "1837777726:00003:000867-10021-stab",
-      "Ts": 1784053920776,
+      "MessageId": "1837778771:00003:000555-10021-stab",
+      "Ts": 1784054480285,
       "Bookmaker": "TXLineStablePriceDemargined",
       "BookmakerId": 10021,
       "SuperOddsType": "1X2_PARTICIPANT_RESULT",
@@ -35,20 +35,20 @@
         "part2"
       ],
       "Prices": [
-        3409,
+        3407,
         2195,
-        3981
+        3986
       ],
       "Pct": [
-        "29.334",
+        "29.351",
         "45.558",
-        "25.119"
+        "25.088"
       ]
     },
     {
       "FixtureId": 18237038,
-      "MessageId": "1837777749:00003:000601-10021-stab",
-      "Ts": 1784053932938,
+      "MessageId": "1837778837:00003:000366-10021-stab",
+      "Ts": 1784054513398,
       "Bookmaker": "TXLineStablePriceDemargined",
       "BookmakerId": 10021,
       "SuperOddsType": "1X2_PARTICIPANT_RESULT",
@@ -62,20 +62,44 @@
         "part2"
       ],
       "Prices": [
-        2662,
-        3144,
-        3265
+        2683,
+        3141,
+        3237
       ],
       "Pct": [
-        "37.566",
-        "31.807",
-        "30.628"
+        "37.272",
+        "31.837",
+        "30.893"
       ]
     },
     {
       "FixtureId": 18237038,
-      "MessageId": "1837777661:00003:000967-10021-stab",
-      "Ts": 1784053885345,
+      "MessageId": "1837778671:00003:000063-10021-stab",
+      "Ts": 1784054428001,
+      "Bookmaker": "TXLineStablePriceDemargined",
+      "BookmakerId": 10021,
+      "SuperOddsType": "ASIANHANDICAP_PARTICIPANT_GOALS",
+      "GameState": null,
+      "InRunning": false,
+      "MarketParameters": "line=0",
+      "MarketPeriod": "half=1",
+      "PriceNames": [
+        "part1",
+        "part2"
+      ],
+      "Prices": [
+        1907,
+        2102
+      ],
+      "Pct": [
+        "52.438",
+        "47.574"
+      ]
+    },
+    {
+      "FixtureId": 18237038,
+      "MessageId": "1837778783:00003:000900-10021-stab",
+      "Ts": 1784054486305,
       "Bookmaker": "TXLineStablePriceDemargined",
       "BookmakerId": 10021,
       "SuperOddsType": "ASIANHANDICAP_PARTICIPANT_GOALS",
@@ -88,8 +112,8 @@
         "part2"
       ],
       "Prices": [
-        2717,
-        1583
+        2722,
+        1581
       ],
       "Pct": [
         "NA",
@@ -98,8 +122,8 @@
     },
     {
       "FixtureId": 18237038,
-      "MessageId": "1837777661:00003:000964-10021-stab",
-      "Ts": 1784053885345,
+      "MessageId": "1837778771:00003:000556-10021-stab",
+      "Ts": 1784054480285,
       "Bookmaker": "TXLineStablePriceDemargined",
       "BookmakerId": 10021,
       "SuperOddsType": "ASIANHANDICAP_PARTICIPANT_GOALS",
@@ -112,36 +136,12 @@
         "part2"
       ],
       "Prices": [
-        1511,
-        2955
+        1515,
+        2942
       ],
       "Pct": [
         "NA",
         "NA"
-      ]
-    },
-    {
-      "FixtureId": 18237038,
-      "MessageId": "1837777661:00003:000966-10021-stab",
-      "Ts": 1784053885345,
-      "Bookmaker": "TXLineStablePriceDemargined",
-      "BookmakerId": 10021,
-      "SuperOddsType": "ASIANHANDICAP_PARTICIPANT_GOALS",
-      "GameState": null,
-      "InRunning": false,
-      "MarketParameters": "line=-0.5",
-      "MarketPeriod": "half=1",
-      "PriceNames": [
-        "part1",
-        "part2"
-      ],
-      "Prices": [
-        3478,
-        1404
-      ],
-      "Pct": [
-        "28.752",
-        "71.225"
       ]
     }
   ]
