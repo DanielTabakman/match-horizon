@@ -1,6 +1,30 @@
 # AGENTS.md — Match Horizon
 
-This repository is a narrow hackathon build. Read the charter and demo contract before modifying code.
+This repository is a narrow hackathon build. The repository itself is the instruction source; Daniel should not need to paste long task prompts into Codex.
+
+## Start-of-session protocol
+
+Before modifying code:
+
+1. Read `CURRENT_TASK.md`.
+2. Read the active GitHub issue linked from that file, using `gh issue view` when available.
+3. Read the project documents referenced by the task or issue.
+4. Inspect `git status -sb` and preserve unrelated work.
+5. Work only on the active task and stop at its acceptance gate.
+
+If `CURRENT_TASK.md` says `Status: BLOCKED`, do not invent work around the blocker. Report the smallest concrete action needed from Daniel.
+
+## Instruction hierarchy
+
+When instructions differ, use this order:
+
+1. Daniel's latest explicit instruction
+2. `CURRENT_TASK.md`
+3. The active GitHub issue
+4. This `AGENTS.md`
+5. Other documents under `docs/`
+
+Never begin the next GitHub issue merely because the current implementation seems easy to extend.
 
 ## Product promise
 
@@ -21,7 +45,7 @@ This repository is independent from MSOS and Autobuilder during the hackathon.
 - Do not use workspace links, submodules, local-path dependencies, or copied environment files from MSOS or Autobuilder.
 - Reimplement only the minimum logic required for this demo.
 - Any future integration with MSOS requires a separate post-hackathon migration decision.
-- Do not invoke or integrate Autobuilder unless Daniel explicitly approves it for this repository.
+- Do not invoke or integrate Autobuilder unless Daniel explicitly approves it for this repository in the current conversation.
 
 ## Hard scope boundaries
 
@@ -47,23 +71,24 @@ Do not add any of the following unless explicitly requested:
 3. UI components consume normalized domain types only.
 4. Unsupported or ambiguous data must fail explicitly; never guess silently.
 5. Historical replay must be deterministic and work without network access after capture.
-6. Credentials must remain server-side and must never be committed.
+6. Credentials must remain server-side and must never be committed, printed, or copied into issues or chat.
 7. Every phase must pass its gate before the next phase begins.
 8. Prefer the smallest working implementation over abstraction.
 9. Do not refactor unrelated code.
 10. Run build, typecheck, lint, and tests before declaring a task complete.
+11. Do not use breaking dependency upgrades merely to silence an audit warning without reviewing the impact.
 
-## Required first implementation task
+## Completion report
 
-Implement only a TxLINE connectivity probe that:
+At the end of a work session, report:
 
-- validates environment variables;
-- fetches fixtures;
-- selects one World Cup fixture;
-- fetches odds and score data for that fixture;
-- prints representative keys and record counts;
-- stores sanitized samples for tests;
-- makes no product UI changes.
+1. Files changed
+2. Commands run and their results
+3. Real external data successfully retrieved
+4. Blockers or unresolved assumptions
+5. Whether the active acceptance gate passed
+6. Branch, commit, and pull-request status
+7. The exact next action, without starting it
 
 ## Review priorities
 
