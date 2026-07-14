@@ -12,13 +12,31 @@ describe("TxLINE environment validation", () => {
 
   it("accepts the required probe configuration", () => {
     const config = getTxlineConfig({
-      TXLINE_API_ORIGIN: "https://txline.txodds.com",
       TXLINE_API_TOKEN: "token",
       TXLINE_NETWORK: "mainnet",
     });
 
     expect(config.apiOrigin).toBe("https://txline.txodds.com");
     expect(config.demoFixtureId).toBeNull();
+  });
+
+  it("derives the devnet origin from TXLINE_NETWORK", () => {
+    const config = getTxlineConfig({
+      TXLINE_API_TOKEN: "token",
+      TXLINE_NETWORK: "devnet",
+    });
+
+    expect(config.apiOrigin).toBe("https://txline-dev.txodds.com");
+  });
+
+  it("rejects an origin override that does not match the selected network", () => {
+    expect(() =>
+      getTxlineConfig({
+        TXLINE_API_TOKEN: "token",
+        TXLINE_NETWORK: "devnet",
+        TXLINE_API_ORIGIN_OVERRIDE: "https://txline.txodds.com",
+      }),
+    ).toThrow(TxlineProbeError);
   });
 });
 

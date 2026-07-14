@@ -12,6 +12,10 @@ export type TxlineConfig = {
 };
 
 const envFiles = [".env.local", ".env"];
+const networkOrigins: Record<TxlineNetwork, string> = {
+  mainnet: "https://txline.txodds.com",
+  devnet: "https://txline-dev.txodds.com",
+};
 
 export function loadLocalEnvFiles(cwd = process.cwd()) {
   for (const file of envFiles) {
@@ -53,8 +57,8 @@ export function getTxlineConfig(
     );
   }
 
-  const apiOrigin = parseApiOrigin(env.TXLINE_API_ORIGIN);
   const network = parseNetwork(env.TXLINE_NETWORK);
+  const apiOrigin = resolveApiOrigin(network, env.TXLINE_API_ORIGIN_OVERRIDE);
 
   return {
     apiOrigin,
@@ -65,15 +69,32 @@ export function getTxlineConfig(
 }
 
 const requiredEnvKeys = [
-  "TXLINE_API_ORIGIN",
   "TXLINE_API_TOKEN",
   "TXLINE_NETWORK",
 ] as const;
 
-function parseApiOrigin(value: string | undefined) {
+function resolveApiOrigin(network: TxlineNetwork, override: string | undefined) {
+  const expectedOrigin = networkOrigins[network];
+  const raw = override?.trim();
+  if (!raw) {
+    return expectedOrigin;
+  }
+
+  const overrideOrigin = parseApiOrigin(raw, "TXLINE_API_ORIGIN_OVERRIDE");
+  if (overrideOrigin !== expectedOrigin) {
+    throw new TxlineProbeError(
+      `TXLINE_API_ORIGIN_OVERRIDE must match the selected TXLINE_NETWORK origin (${expectedOrigin}).`,
+      "missing_configuration",
+    );
+  }
+
+  return overrideOrigin;
+}
+
+function parseApiOrigin(value: string | undefined, key: string) {
   const raw = value?.trim();
   if (!raw) {
-    throw new TxlineProbeError("TXLINE_API_ORIGIN is required.", "missing_configuration");
+    throw new TxlineProbeError(`${key} is required.`, "missing_configuration");
   }
 
   let url: URL;
@@ -81,14 +102,14 @@ function parseApiOrigin(value: string | undefined) {
     url = new URL(raw);
   } catch {
     throw new TxlineProbeError(
-      "TXLINE_API_ORIGIN must be a valid http(s) URL.",
+      `${key} must be a valid http(s) URL.`,
       "missing_configuration",
     );
   }
 
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new TxlineProbeError(
-      "TXLINE_API_ORIGIN must use http or https.",
+      `${key} must use http or https.`,
       "missing_configuration",
     );
   }
