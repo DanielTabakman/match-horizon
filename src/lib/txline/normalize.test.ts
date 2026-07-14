@@ -30,6 +30,17 @@ describe("TxLINE fixture normalization", () => {
 
 describe("TxLINE full-match three-way odds normalization", () => {
   const fixture = normalizeTxlineFixture(worldCupFixtureRecord);
+  const expectedObservedMarket = {
+    fixtureId: "18237038",
+    marketType: "match_result",
+    capturedAt: "2026-07-14T18:42:08.439Z",
+    source: "txline_capture",
+    outcomes: [
+      { outcomeId: "participant_1", label: "France", probability: 0.37272 },
+      { outcomeId: "draw", label: "Draw", probability: 0.31837 },
+      { outcomeId: "participant_2", label: "Spain", probability: 0.30893 },
+    ],
+  } as const;
 
   it("normalizes only the observed full-match 1X2 participant-result market", () => {
     const market = normalizeTxlineMatchResultMarket(
@@ -38,17 +49,7 @@ describe("TxLINE full-match three-way odds normalization", () => {
       oddsCapture.capturedAt,
     );
 
-    expect(market).toEqual({
-      fixtureId: "18237038",
-      marketType: "match_result",
-      capturedAt: "2026-07-14T18:42:08.439Z",
-      source: "txline_capture",
-      outcomes: [
-        { outcomeId: "participant_1", label: "France", probability: 0.37272 },
-        { outcomeId: "draw", label: "Draw", probability: 0.31837 },
-        { outcomeId: "participant_2", label: "Spain", probability: 0.30893 },
-      ],
-    });
+    expect(market).toEqual(expectedObservedMarket);
 
     const total = market.outcomes.reduce((sum, outcome) => sum + outcome.probability, 0);
     expect(total).toBeCloseTo(1, 2);
@@ -62,17 +63,76 @@ describe("TxLINE full-match three-way odds normalization", () => {
     ).toThrowError(TxlineNormalizationError);
   });
 
-  it("rejects ambiguous match-result outcome names", () => {
-    const ambiguous = [
+  it("maps reordered source outcome names by semantics and emits canonical domain order", () => {
+    const reordered = [
       {
         ...oddsCapture.sample[1],
-        PriceNames: ["part1", "part2", "draw"],
+        PriceNames: ["part2", "part1", "draw"],
+        Pct: ["30.893", "37.272", "31.837"],
+      },
+    ];
+
+    expect(normalizeTxlineMatchResultMarket(reordered, fixture, oddsCapture.capturedAt)).toEqual(
+      expectedObservedMarket,
+    );
+  });
+
+  it("rejects duplicate match-result outcome names explicitly", () => {
+    const duplicateName = [
+      {
+        ...oddsCapture.sample[1],
+        PriceNames: ["part1", "draw", "draw"],
       },
     ];
 
     expect(() =>
-      normalizeTxlineMatchResultMarket(ambiguous, fixture, oddsCapture.capturedAt),
-    ).toThrow(/Unsupported match-result price names/);
+      normalizeTxlineMatchResultMarket(duplicateName, fixture, oddsCapture.capturedAt),
+    ).toThrowError(TxlineNormalizationError);
+    expect(() =>
+      normalizeTxlineMatchResultMarket(duplicateName, fixture, oddsCapture.capturedAt),
+    ).toThrow(/Duplicate match-result outcome name/);
+  });
+
+  it("rejects unknown match-result outcome names explicitly", () => {
+    const unknownName = [
+      {
+        ...oddsCapture.sample[1],
+        PriceNames: ["part1", "draw", "home"],
+      },
+    ];
+
+    expect(() =>
+      normalizeTxlineMatchResultMarket(unknownName, fixture, oddsCapture.capturedAt),
+    ).toThrowError(TxlineNormalizationError);
+    expect(() =>
+      normalizeTxlineMatchResultMarket(unknownName, fixture, oddsCapture.capturedAt),
+    ).toThrow(/Unsupported match-result outcome name/);
+  });
+
+  it("rejects empty-string probability values as ambiguous data", () => {
+    const blankProbability = [
+      {
+        ...oddsCapture.sample[1],
+        Pct: ["", "50", "50"],
+      },
+    ];
+
+    expect(() =>
+      normalizeTxlineMatchResultMarket(blankProbability, fixture, oddsCapture.capturedAt),
+    ).toThrowError(TxlineNormalizationError);
+  });
+
+  it("rejects whitespace-only probability values as ambiguous data", () => {
+    const blankProbability = [
+      {
+        ...oddsCapture.sample[1],
+        Pct: ["37.272", "   ", "62.728"],
+      },
+    ];
+
+    expect(() =>
+      normalizeTxlineMatchResultMarket(blankProbability, fixture, oddsCapture.capturedAt),
+    ).toThrowError(TxlineNormalizationError);
   });
 
   it("rejects probability values that cannot support the three-way invariant", () => {

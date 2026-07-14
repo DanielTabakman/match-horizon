@@ -18,10 +18,11 @@ Source: committed sanitized captures in `test-fixtures/txline/`, captured on `20
 - Supported full-match period observed: `MarketPeriod = null`
 - Supported full-match parameters observed: `MarketParameters = null`
 - A separate observed `MarketPeriod = "half=1"` record is not normalized as full-match.
-- Supported outcome names and mapping:
+- Supported semantic outcome-name set, independent of source-array order:
   - `part1` -> normalized `participant_1` -> fixture `Participant1`
   - `draw` -> normalized `draw`
   - `part2` -> normalized `participant_2` -> fixture `Participant2`
+- `PriceNames` and `Pct` are treated as aligned arrays: each price name is paired with the probability at the same source index, then normalized outcomes are emitted in canonical domain order (`participant_1`, `draw`, `participant_2`).
 - Probability scale observed: `Pct` contains percentage strings, for example `"37.272"`, divided by `100` for normalized probabilities.
 - Observed full-match total: `37.272 + 31.837 + 30.893 = 100.002`, accepted within the `0.01` normalized tolerance.
 
@@ -40,6 +41,8 @@ The Phase 2 adapter fails explicitly when:
 
 - no full-match `1X2_PARTICIPANT_RESULT` market exists for the fixture;
 - multiple supported full-match records exist in one normalization call;
-- outcome names are not exactly `part1`, `draw`, `part2`;
-- probabilities are non-finite, outside `[0, 1]`, missing, or do not total within `0.01` of `1.00`;
+- the semantic outcome-name set is not exactly `part1`, `draw`, and `part2`;
+- outcome names are missing, unknown, or duplicated;
+- `PriceNames` and `Pct` are not equal-length arrays with exactly three entries;
+- probabilities are blank, non-finite, outside `[0, 1]`, missing, or do not total within `0.01` of `1.00`;
 - required fixture or score event fields are missing.

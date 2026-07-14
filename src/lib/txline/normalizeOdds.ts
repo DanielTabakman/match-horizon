@@ -5,6 +5,8 @@ import type { TxlineOddsRecord } from "./schemas";
 const SUPPORTED_MARKET_TYPE = "1X2_PARTICIPANT_RESULT";
 const SUPPORTED_PRICE_NAMES = ["part1", "draw", "part2"] as const;
 
+type SupportedPriceName = (typeof SUPPORTED_PRICE_NAMES)[number];
+
 export function normalizeTxlineMatchResultMarket(
   records: TxlineOddsRecord[],
   fixture: Fixture,
@@ -43,12 +45,11 @@ function normalizeSupportedRecord(
   fixture: Fixture,
   capturedAt: string,
 ): MarketSnapshot {
-  assertPriceNames(record.PriceNames);
-  const pct = parseProbabilityPercentages(record.Pct);
+  const pctByName = parseProbabilitiesByPriceName(record.PriceNames, record.Pct);
   const outcomes: OutcomeQuote[] = [
-    { outcomeId: "participant_1", label: fixture.participant1, probability: pct[0] },
-    { outcomeId: "draw", label: "Draw", probability: pct[1] },
-    { outcomeId: "participant_2", label: fixture.participant2, probability: pct[2] },
+    { outcomeId: "participant_1", label: fixture.participant1, probability: pctByName.part1 },
+    { outcomeId: "draw", label: "Draw", probability: pctByName.draw },
+    { outcomeId: "participant_2", label: fixture.participant2, probability: pctByName.part2 },
   ];
 
   assertProbabilityInvariants(outcomes);
@@ -62,47 +63,90 @@ function normalizeSupportedRecord(
   };
 }
 
-function assertPriceNames(value: unknown): asserts value is string[] {
-  if (!Array.isArray(value) || value.length !== SUPPORTED_PRICE_NAMES.length) {
+function parseProbabilitiesByPriceName(
+  priceNames: unknown,
+  pct: unknown,
+): Record<SupportedPriceName, number> {
+  if (!Array.isArray(priceNames) || !Array.isArray(pct)) {
     throw new TxlineNormalizationError(
-      "Supported match-result market must contain exactly three price names.",
+      "Supported match-result market must contain price-name and probability arrays.",
       "ambiguous_data",
     );
   }
 
-  const observed = value.map((item) => String(item));
-  if (!SUPPORTED_PRICE_NAMES.every((expected, index) => observed[index] === expected)) {
+  if (priceNames.length !== pct.length) {
     throw new TxlineNormalizationError(
-      `Unsupported match-result price names: ${observed.join(", ")}.`,
-      "ambiguous_data",
-    );
-  }
-}
-
-function parseProbabilityPercentages(value: unknown): [number, number, number] {
-  if (!Array.isArray(value) || value.length !== 3) {
-    throw new TxlineNormalizationError(
-      "Supported match-result market must contain exactly three probability values.",
+      "Supported match-result price-name and probability arrays must have equal length.",
       "ambiguous_data",
     );
   }
 
-  const probabilities = value.map((item) => {
-    if (typeof item !== "string" && typeof item !== "number") {
-      return Number.NaN;
+  if (priceNames.length !== SUPPORTED_PRICE_NAMES.length) {
+    throw new TxlineNormalizationError(
+      "Supported match-result market must contain exactly three outcomes.",
+      "ambiguous_data",
+    );
+  }
+
+  const probabilitiesByName: Partial<Record<SupportedPriceName, number>> = {};
+  for (const [index, rawName] of priceNames.entries()) {
+    const name = parseSupportedPriceName(rawName);
+    if (probabilitiesByName[name] !== undefined) {
+      throw new TxlineNormalizationError(
+        `Duplicate match-result outcome name: ${name}.`,
+        "ambiguous_data",
+      );
     }
 
-    return Number(item) / 100;
-  });
+    probabilitiesByName[name] = parseProbabilityPercentage(pct[index]);
+  }
 
-  if (probabilities.some((probability) => !Number.isFinite(probability))) {
+  const missing = SUPPORTED_PRICE_NAMES.filter((name) => probabilitiesByName[name] === undefined);
+  if (missing.length > 0) {
+    throw new TxlineNormalizationError(
+      `Supported match-result market is missing outcome names: ${missing.join(", ")}.`,
+      "ambiguous_data",
+    );
+  }
+
+  return probabilitiesByName as Record<SupportedPriceName, number>;
+}
+
+function parseSupportedPriceName(value: unknown): SupportedPriceName {
+  if (typeof value !== "string" || !SUPPORTED_PRICE_NAMES.includes(value as SupportedPriceName)) {
+    throw new TxlineNormalizationError(
+      `Unsupported match-result outcome name: ${String(value)}.`,
+      "ambiguous_data",
+    );
+  }
+
+  return value as SupportedPriceName;
+}
+
+function parseProbabilityPercentage(value: unknown): number {
+  if (typeof value === "string" && value.trim() === "") {
+    throw new TxlineNormalizationError(
+      "Supported match-result probabilities must not be blank.",
+      "ambiguous_data",
+    );
+  }
+
+  if (typeof value !== "string" && typeof value !== "number") {
     throw new TxlineNormalizationError(
       "Supported match-result probabilities must be finite percentage values.",
       "ambiguous_data",
     );
   }
 
-  return probabilities as [number, number, number];
+  const probability = Number(value) / 100;
+  if (!Number.isFinite(probability)) {
+    throw new TxlineNormalizationError(
+      "Supported match-result probabilities must be finite percentage values.",
+      "ambiguous_data",
+    );
+  }
+
+  return probability;
 }
 
 function assertProbabilityInvariants(outcomes: OutcomeQuote[]): void {
