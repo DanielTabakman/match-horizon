@@ -6,7 +6,7 @@ Public demo: https://match-horizon.vercel.app
 
 Repository: https://github.com/DanielTabakman/match-horizon
 
-Before the execution-routing extension, the project owner smoke-tested the base production deployment in an incognito desktop browser and at mobile width on July 16, 2026. This execution-routing branch has passed local desktop and mobile-width smoke tests, but it has not yet been merged, deployed to production, or smoke-tested at the public URL.
+Before the required-edge and Kelly extension, the project owner smoke-tested the merged execution-routing deployment in an incognito desktop browser and at mobile width on July 16, 2026. This Issue #24 branch has passed local desktop and mobile-width smoke tests, but it has not yet been merged, deployed to production, or smoke-tested at the public URL.
 
 ## Product Flow
 
@@ -17,14 +17,15 @@ The implemented judge flow is:
 3. Enter personal probabilities for France, Draw, and Spain. The total must be exactly `100%`.
 4. See outcome-by-outcome disagreement, calculated as `user probability - market probability`.
 5. See the strongest positive disagreement and the plain match-result expression that represents it.
-6. Build a simulated execution route against generic venue liquidity.
-7. Review requested stake, routed fills, weighted-average odds, estimated payout, and user-belief expected value.
-8. Start the bundled deterministic replay.
-9. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
-10. Watch the replay reach the observed final result: France `0`, Spain `2`.
-11. Inspect the real TxLINE result receipt and the separately labeled simulated execution settlement.
+6. Convert the selected belief into fair odds, required edge, calculated minimum odds, and a fractional Kelly sizing reference.
+7. Build a simulated execution route against generic venue liquidity using Kelly sizing by default or a manual stake alternative.
+8. Review routed fills, weighted-average odds, estimated payout, and user-belief expected return.
+9. Start the bundled deterministic replay.
+10. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
+11. Watch the replay reach the observed final result: France `0`, Spain `2`.
+12. Inspect the real TxLINE result receipt and the separately labeled simulated execution settlement.
 
-The product is read-only. The execution route is a deterministic simulation only: no wager is submitted, no external venue is contacted, and no real sportsbook or exchange name is used. It does not custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
+The product is read-only. The execution route and Kelly output are deterministic simulation references only: no wager is submitted, no external venue is contacted, and no real sportsbook or exchange name is used. Kelly sizing is based entirely on the user's probability estimate and is not bankroll advice. The app does not custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
 
 ## Architecture
 
@@ -122,12 +123,21 @@ This is intentional and documented. The app must not imply that it observed hist
 
 ## Simulated Execution Layer
 
-Issue #18 adds a small deterministic execution-routing demo. The router validates the selected outcome, requested stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the user's minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple generic venues, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and user-belief expected value.
+Issue #24 extends the deterministic execution-routing demo with required-edge pricing and fractional Kelly sizing. The pricing module converts the user's selected outcome probability into fair decimal odds, applies the required expected return to produce calculated minimum odds, and calculates Quarter, Half, or Full Kelly references from that minimum price. The router still validates the selected outcome, target stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the calculated minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple generic venues, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and expected return from the user's belief.
 
 The committed demo liquidity is generic and simulated. It is not a TxLINE payload, not a sportsbook integration, and not an exchange integration.
 
 Default Spain route:
 
+- User probability: `50%`
+- Fair decimal odds: `2.00`
+- Required edge: `10%`
+- Calculated minimum odds: `2.20`
+- Strategy bankroll: `$120,000`
+- Kelly setting: Half Kelly
+- Full Kelly: `8.33%`
+- Applied Kelly: `4.17%`
+- Suggested stake: `$5,000`
 - `$500` at decimal odds `3.50`
 - `$2,000` at decimal odds `3.42`
 - `$2,500` at decimal odds `3.30`
@@ -135,7 +145,9 @@ Default Spain route:
 - Weighted-average odds: `3.368`, displayed as `3.37`
 - Estimated gross payout: `$16,840`
 
-When replay starts, the current simulated route is frozen next to the frozen user belief and expression. Later input edits do not rewrite that frozen plan.
+The `3.24` Spain quote is above the calculated `2.20` minimum and remains eligible, but the default `$5,000` target stake is fully filled at better prices first. Manual sizing remains available by disabling Kelly sizing.
+
+When replay starts, the current pricing policy, sizing policy, simulated route, frozen user belief, and expression are frozen together. Later input edits do not rewrite that frozen plan or the simulated settlement.
 
 ## Proof And On-Chain Validation Limitations
 

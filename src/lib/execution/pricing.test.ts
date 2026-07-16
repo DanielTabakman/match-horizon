@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_LIQUIDITY_BOOK } from "./demoLiquidity";
 import {
+  buildExecutionPlanKey,
   calculateExpectedReturn,
   calculateFullKellyFraction,
   calculateKellySizingPolicy,
@@ -138,5 +139,39 @@ describe("default pricing policy with the router", () => {
     ]);
     expect(route.weightedAverageOdds).toBe(3.368);
     expect(route.estimatedGrossPayout).toBe(16840);
+  });
+
+  it("changes the route invalidation key when pricing or sizing inputs change", () => {
+    const baseKey = buildExecutionPlanKey({
+      outcomeId: "participant_2",
+      userProbability: 0.5,
+      requiredEdgePercent: "10",
+      bankroll: "120000",
+      kellyMultiplier: "half",
+      sizingMode: "kelly",
+      manualStake: "5000",
+    });
+
+    const variants = [
+      { requiredEdgePercent: "12" },
+      { bankroll: "90000" },
+      { kellyMultiplier: "quarter" as const },
+      { sizingMode: "manual" as const },
+      { manualStake: "4500" },
+      { userProbability: 0.49 },
+    ].map((change) =>
+      buildExecutionPlanKey({
+        outcomeId: "participant_2",
+        userProbability: 0.5,
+        requiredEdgePercent: "10",
+        bankroll: "120000",
+        kellyMultiplier: "half",
+        sizingMode: "kelly",
+        manualStake: "5000",
+        ...change,
+      }),
+    );
+
+    expect(new Set(variants)).not.toContain(baseKey);
   });
 });

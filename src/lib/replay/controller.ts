@@ -1,6 +1,7 @@
 import type { BeliefByOutcome, BeliefComparison, OutcomeDisagreement } from "../beliefComparison";
 import { compareBeliefsToMarket } from "../beliefComparison";
 import type { MarketSnapshot, OutcomeQuote, ResultReceipt, ScoreEvent } from "../domain";
+import type { ExecutionPlan } from "../execution/pricing";
 import type { ExecutionRoute } from "../execution/router";
 import type { MatchReplay, ReplayEvent } from "./types";
 
@@ -9,6 +10,7 @@ export type EvaluationSnapshot = {
   market: MarketSnapshot;
   comparison: BeliefComparison;
   strongestPositive: OutcomeDisagreement;
+  executionPlan: ExecutionPlan | null;
   selectedExpression: OutcomeQuote["outcomeId"];
   executionRoute: ExecutionRoute | null;
   capturedAt: string;
@@ -45,7 +47,7 @@ export function freezeEvaluationSnapshot(
   market: MarketSnapshot,
   belief: BeliefByOutcome,
   capturedAt: string,
-  executionRoute: ExecutionRoute | null = null,
+  executionPlan: ExecutionPlan | null = null,
 ): EvaluationSnapshot | null {
   const comparison = compareBeliefsToMarket(market, belief);
   if (!comparison.isValid || !comparison.strongestPositive) {
@@ -58,7 +60,8 @@ export function freezeEvaluationSnapshot(
     comparison,
     strongestPositive: comparison.strongestPositive,
     selectedExpression: comparison.strongestPositive.outcomeId,
-    executionRoute,
+    executionPlan,
+    executionRoute: executionPlan?.route ?? null,
     capturedAt,
   };
 }

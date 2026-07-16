@@ -1,3 +1,5 @@
+import type { ExecutionRoute } from "./router";
+
 export const KELLY_MULTIPLIERS = {
   quarter: 0.25,
   half: 0.5,
@@ -5,6 +7,7 @@ export const KELLY_MULTIPLIERS = {
 } as const;
 
 export type KellyMultiplier = keyof typeof KELLY_MULTIPLIERS;
+export type ExecutionSizingMode = "kelly" | "manual";
 
 export type PricingPolicy = {
   userProbability: number;
@@ -20,6 +23,39 @@ export type KellySizingPolicy = PricingPolicy & {
   appliedKellyFraction: number;
   suggestedStake: number;
 };
+
+export type ExecutionPlan = {
+  pricing: PricingPolicy;
+  sizingMode: ExecutionSizingMode;
+  bankroll: number | null;
+  kellyMultiplier: KellyMultiplier | null;
+  fullKellyFraction: number;
+  appliedKellyFraction: number;
+  targetStake: number;
+  route: ExecutionRoute;
+};
+
+export type ExecutionPlanKeyInput = {
+  outcomeId: string | null;
+  userProbability: number | null;
+  requiredEdgePercent: string;
+  bankroll: string;
+  kellyMultiplier: KellyMultiplier;
+  sizingMode: ExecutionSizingMode;
+  manualStake: string;
+};
+
+export function buildExecutionPlanKey(input: ExecutionPlanKeyInput): string {
+  return [
+    input.outcomeId ?? "none",
+    input.userProbability ?? "none",
+    input.requiredEdgePercent,
+    input.bankroll,
+    input.kellyMultiplier,
+    input.sizingMode,
+    input.manualStake,
+  ].join(":");
+}
 
 export function calculatePricingPolicy(userProbability: number, requiredEdge: number): PricingPolicy {
   validateProbability(userProbability);

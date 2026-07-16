@@ -6,6 +6,8 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
 Production verification: project owner reported the merged execution-routing deployment working on the public URL at desktop and mobile width on July 16, 2026.
 
+Issue #24 production verification remains pending until the required-edge and Kelly branch is merged and deployed.
+
 ## Product
 
 - [x] Real TxLINE fixture loads from committed sanitized capture: France vs Spain, fixture `18237038`.
@@ -17,12 +19,24 @@ Production verification: project owner reported the merged execution-routing dep
 - [x] Expression recommendation is accurate and modest.
 - [x] Simulated Execution Agent panel is implemented.
 - [x] Generic simulated liquidity covers all three outcomes.
-- [x] Default Spain route fills `$5,000` at minimum decimal odds `3.30`.
+- [x] Default Spain belief is `50%`.
+- [x] Default Spain fair odds are `2.00`.
+- [x] Default required edge is `10%`.
+- [x] Default calculated minimum odds are `2.20`.
+- [x] Default strategy bankroll is `$120,000`.
+- [x] Default Kelly selection is Half Kelly.
+- [x] Default full Kelly is `8.33%`.
+- [x] Default applied Kelly is `4.17%`.
+- [x] Default suggested stake is `$5,000`.
+- [x] Manual stake sizing remains available.
+- [x] Default Spain route fills `$5,000` after the best available prices above the `2.20` minimum.
 - [x] Simulated route shows filled stake, unfilled stake, weighted-average odds, payout, and expected value.
 - [x] UI states `Simulation only - no wager submitted`.
+- [x] UI states Kelly sizing is based on the user's own probability and is not a recommendation.
 - [x] Historical replay reaches final result.
 - [x] Result receipt is based on real TxLINE score data.
 - [x] Simulated execution settlement is labeled separately from the TxLINE result receipt.
+- [x] Replay freezes pricing, sizing, route, and settlement context.
 - [x] No live match is required for the core demo.
 
 ## Reliability
@@ -33,6 +47,7 @@ Production verification: project owner reported the merged execution-routing dep
 - [x] Lint command exists: `npm run lint`.
 - [x] Build command exists: `npm run build`.
 - [x] Execution router validation, filtering, sorting, fills, payout, and expected value are tested.
+- [x] Required-edge fair odds, minimum odds, expected return, Kelly multipliers, default Spain policy, route invalidation key, and frozen replay policy are tested.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
 - [x] Local desktop smoke test passes for the execution-routing branch.
@@ -91,6 +106,8 @@ Production verification: project owner reported the merged execution-routing dep
 - [x] README distinguishes real TxLINE data from simulated venue liquidity and execution.
 - [x] Demo script distinguishes real TxLINE receipt from simulated execution settlement.
 - [x] Demo script explains fair odds and minimum acceptable odds.
+- [x] Demo script explains required edge, calculated minimum odds, and Half Kelly sizing.
+- [x] Demo script no longer claims the `3.24` quote is rejected in the default flow.
 - [x] Demo script explains TxLINE versus execution venues and future venue connectors.
 - [x] Technical summary distinguishes TxLINE integration from simulated routing.
 - [x] Known limitations documented.

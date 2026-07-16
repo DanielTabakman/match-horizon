@@ -42,7 +42,7 @@ Call out:
 
 "I think Spain has a fifty-percent chance, so my fair odds are two-to-one in decimal format: 2.00. The TxLINE market reference is only about thirty-one percent, so Match Horizon identifies Spain as the clearest disagreement."
 
-## 1:35-2:35 - Simulated Execution Route
+## 1:35-2:35 - Required Edge, Kelly Sizing, And Simulated Route
 
 Use the default Spain example.
 
@@ -53,18 +53,23 @@ Explain the layers before building the route:
 Call out:
 
 - The panel says `Simulation only - no wager submitted`.
-- Requested stake defaults to `$5,000`.
-- Minimum decimal odds defaults to `3.30`.
-- Minimum odds are different from fair odds: `2.00` is the user's break-even estimate, while `3.30` is the worst execution price the user will accept.
+- The required edge defaults to `10%`.
+- A `50%` belief produces fair odds of `2.00`.
+- A `10%` required edge turns that into calculated minimum odds of `2.20`.
+- Strategy bankroll defaults to `$120,000`.
+- Half Kelly is selected by default.
+- Full Kelly is `8.33%`, applied Half Kelly is `4.17%`, and the suggested stake is `$5,000`.
+- Kelly sizing is a simulation reference based on the user's probability, not a guarantee or recommendation.
+- Manual stake sizing remains available by disabling `Use Kelly sizing`.
 - The simulated liquidity uses generic venue names only.
 - Build the route.
-- The quote at `3.24` is rejected because it is below the minimum.
+- The quote at `3.24` is above the `2.20` minimum and eligible, but the default target is fully filled at better prices first.
 - The fills are `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
 - Filled stake is `$5,000`.
 - Weighted-average odds display as `3.37`.
 - Estimated gross payout is `$16,840`.
 
-"The venue quotes and order submission are simulated, but the routing algorithm and calculations are real. It filters unacceptable prices, takes the best price first, and splits the order until the requested amount is filled."
+"The venue quotes and order submission are simulated, but the pricing and routing calculations are real. Match Horizon turns my fifty-percent belief into 2.00 fair odds, adds my ten-percent required edge to get a 2.20 minimum, sizes the target with Half Kelly, then takes the best eligible prices first until the target is filled."
 
 ## 2:35-3:20 - Deterministic Replay
 
@@ -109,7 +114,7 @@ Then show the separately labeled `Simulated execution settlement`:
 
 ## 4:05-4:35 - Architecture, Future Integration, And Limits
 
-"There are three layers. TxLINE provides the normalized market reference and outcome data. Match Horizon converts belief into fair odds, identifies the disagreement, and routes the order. Venue connectors would provide real executable prices and liquidity from exchanges, sportsbooks, on-chain markets, or market makers."
+"There are three layers. TxLINE provides the normalized market reference and outcome data. Match Horizon converts belief into fair odds, required edge, fractional Kelly sizing, and a route. Venue connectors would provide real executable prices and liquidity from exchanges, sportsbooks, on-chain markets, or market makers."
 
 Mention limitations:
 
@@ -123,7 +128,7 @@ Mention limitations:
 
 ## 4:35-4:45 - Close
 
-"The complete loop is belief in, execution out: TxLINE market reference, personal belief, fair odds, routed liquidity, deterministic result, and a clear receipt. The router works today over simulated liquidity, and the next step is replacing each simulated venue with a real connector."
+"The complete loop is belief in, execution out: TxLINE market reference, personal belief, fair odds, required edge, Kelly sizing, routed liquidity, deterministic result, and a clear receipt. The router works today over simulated liquidity, and the next step is replacing each simulated venue with a real connector."
 
 Show:
 

@@ -17,6 +17,15 @@ import {
 } from "../src/lib/replay/controller";
 import type { MatchReplay } from "../src/lib/replay/types";
 import { DEMO_LIQUIDITY_BOOK } from "../src/lib/execution/demoLiquidity";
+import {
+  calculateExpectedReturn,
+  calculateFullKellyFraction,
+  calculateKellySizingPolicy,
+  calculatePricingPolicy,
+  buildExecutionPlanKey,
+  type ExecutionPlan,
+  type KellyMultiplier,
+} from "../src/lib/execution/pricing";
 import { buildExecutionRoute, type ExecutionRoute } from "../src/lib/execution/router";
 
 export type SnapshotState =
@@ -31,9 +40,9 @@ type Props = {
 };
 
 const DEFAULT_BELIEF: BeliefByOutcome = {
-  participant_1: 0.4,
-  draw: 0.25,
-  participant_2: 0.35,
+  participant_1: 0.3,
+  draw: 0.2,
+  participant_2: 0.5,
 };
 
 const REPLAY = replayCapture as MatchReplay;
@@ -59,7 +68,7 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
   const totalPercent = comparison.totalBelief * 100;
   const totalIsValid = comparison.isValid;
   const strongestPositive = totalIsValid ? comparison.strongestPositive : null;
-  const [executionRoute, setExecutionRoute] = useState<ExecutionRoute | null>(null);
+  const [executionPlan, setExecutionPlan] = useState<ExecutionPlan | null>(null);
 
   function updateBelief(outcomeId: OutcomeQuote["outcomeId"], nextPercent: string) {
     const parsed = Number(nextPercent);
@@ -193,15 +202,15 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
 
       <ExecutionAgentPanel
         strongestPositive={strongestPositive}
-        route={executionRoute}
-        onRouteChange={setExecutionRoute}
+        plan={executionPlan}
+        onPlanChange={setExecutionPlan}
       />
 
       <ReplayPanel
         market={market}
         belief={belief}
-        canStart={totalIsValid && strongestPositive !== null && executionRoute !== null}
-        executionRoute={executionRoute}
+        canStart={totalIsValid && strongestPositive !== null && executionPlan !== null}
+        executionPlan={executionPlan}
       />
     </main>
   );
@@ -209,18 +218,63 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
 
 function ExecutionAgentPanel({
   strongestPositive,
-  route,
-  onRouteChange,
+  plan,
+  onPlanChange,
 }: {
   strongestPositive: ReturnType<typeof compareBeliefsToMarket>["strongestPositive"];
-  route: ExecutionRoute | null;
-  onRouteChange: (route: ExecutionRoute | null) => void;
+  plan: ExecutionPlan | null;
+  onPlanChange: (plan: ExecutionPlan | null) => void;
 }) {
-  const [requestedStake, setRequestedStake] = useState("5000");
-  const [minimumDecimalOdds, setMinimumDecimalOdds] = useState("3.30");
+  const [requiredEdgePercent, setRequiredEdgePercent] = useState("10");
+  const [bankroll, setBankroll] = useState("120000");
+  const [kellyMultiplier, setKellyMultiplier] = useState<KellyMultiplier>("half");
+  const [useKellySizing, setUseKellySizing] = useState(true);
+  const [manualStake, setManualStake] = useState("5000");
   const outcomeId = strongestPositive?.outcomeId ?? null;
   const userProbability = strongestPositive?.beliefProbability ?? null;
-  const routeKey = `${outcomeId ?? "none"}:${userProbability ?? "none"}:${requestedStake}:${minimumDecimalOdds}`;
+  const requiredEdge = Number(requiredEdgePercent) / 100;
+  const parsedBankroll = Number(bankroll);
+  const parsedManualStake = Number(manualStake);
+  const pricingPolicy = useMemo(() => {
+    if (userProbability === null) {
+      return null;
+    }
+
+    try {
+      return calculatePricingPolicy(userProbability, requiredEdge);
+    } catch {
+      return null;
+    }
+  }, [requiredEdge, userProbability]);
+  const kellyPolicy = useMemo(() => {
+    if (userProbability === null) {
+      return null;
+    }
+
+    try {
+      return calculateKellySizingPolicy({
+        userProbability,
+        requiredEdge,
+        bankroll: parsedBankroll,
+        kellyMultiplier,
+      });
+    } catch {
+      return null;
+    }
+  }, [kellyMultiplier, parsedBankroll, requiredEdge, userProbability]);
+  const fullKellyFraction = pricingPolicy
+    ? calculateFullKellyFraction(pricingPolicy.userProbability, pricingPolicy.minimumDecimalOdds)
+    : null;
+  const targetStake = useKellySizing ? kellyPolicy?.suggestedStake ?? Number.NaN : parsedManualStake;
+  const routeKey = buildExecutionPlanKey({
+    outcomeId,
+    userProbability,
+    requiredEdgePercent,
+    bankroll,
+    kellyMultiplier,
+    sizingMode: useKellySizing ? "kelly" : "manual",
+    manualStake,
+  });
   const outcomeQuotes = outcomeId
     ? DEMO_LIQUIDITY_BOOK.filter((quote) => quote.outcomeId === outcomeId).sort(
         (left, right) =>
@@ -229,35 +283,42 @@ function ExecutionAgentPanel({
           left.quoteId.localeCompare(right.quoteId),
       )
     : [];
-  const parsedStake = Number(requestedStake);
-  const parsedMinimumOdds = Number(minimumDecimalOdds);
   const canBuild =
     strongestPositive !== null &&
-    Number.isFinite(parsedStake) &&
-    parsedStake > 0 &&
-    Number.isFinite(parsedMinimumOdds) &&
-    parsedMinimumOdds > 1;
+    pricingPolicy !== null &&
+    Number.isFinite(targetStake) &&
+    targetStake > 0 &&
+    (!useKellySizing || kellyPolicy !== null);
 
   useEffect(() => {
-    onRouteChange(null);
-  }, [routeKey, onRouteChange]);
+    onPlanChange(null);
+  }, [routeKey, onPlanChange]);
 
   function buildRoute() {
-    if (!strongestPositive || !canBuild) {
+    if (!strongestPositive || !pricingPolicy || !canBuild) {
       return;
     }
 
-    onRouteChange(
-      buildExecutionRoute(
-        {
-          outcomeId: strongestPositive.outcomeId,
-          requestedStake: parsedStake,
-          minimumDecimalOdds: parsedMinimumOdds,
-          userProbability: strongestPositive.beliefProbability,
-        },
-        DEMO_LIQUIDITY_BOOK,
-      ),
+    const route = buildExecutionRoute(
+      {
+        outcomeId: strongestPositive.outcomeId,
+        requestedStake: targetStake,
+        minimumDecimalOdds: pricingPolicy.minimumDecimalOdds,
+        userProbability: strongestPositive.beliefProbability,
+      },
+      DEMO_LIQUIDITY_BOOK,
     );
+
+    onPlanChange({
+      pricing: pricingPolicy,
+      sizingMode: useKellySizing ? "kelly" : "manual",
+      bankroll: useKellySizing && kellyPolicy ? kellyPolicy.bankroll : null,
+      kellyMultiplier: useKellySizing ? kellyMultiplier : null,
+      fullKellyFraction: useKellySizing && kellyPolicy ? kellyPolicy.fullKellyFraction : fullKellyFraction ?? 0,
+      appliedKellyFraction: useKellySizing && kellyPolicy ? kellyPolicy.appliedKellyFraction : 0,
+      targetStake,
+      route,
+    });
   }
 
   return (
@@ -275,7 +336,10 @@ function ExecutionAgentPanel({
           <div className="execution-summary">
             <Metric label="Selected outcome" value={`${strongestPositive.label} match result`} />
             <Metric label="Your probability" value={formatPercentage(strongestPositive.beliefProbability)} />
-            <Metric label="Your fair decimal odds" value={formatDecimalOdds(1 / strongestPositive.beliefProbability)} />
+            <Metric
+              label="Fair odds"
+              value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"}
+            />
             <Metric label="TxLINE probability" value={formatPercentage(strongestPositive.marketProbability)} />
             <Metric
               label="Probability disagreement"
@@ -285,33 +349,93 @@ function ExecutionAgentPanel({
 
           <div className="execution-controls">
             <label>
-              <span>Requested stake</span>
+              <span>Required edge (%)</span>
               <input
-                aria-label="Requested stake"
+                aria-label="Required edge percentage"
                 inputMode="decimal"
-                min="1"
-                step="100"
+                min="0"
+                step="0.1"
                 type="number"
-                value={requestedStake}
-                onChange={(event) => setRequestedStake(event.target.value)}
+                value={requiredEdgePercent}
+                onChange={(event) => setRequiredEdgePercent(event.target.value)}
               />
             </label>
             <label>
-              <span>Minimum decimal odds</span>
+              <span>Strategy bankroll</span>
               <input
-                aria-label="Minimum decimal odds"
+                aria-label="Strategy bankroll"
                 inputMode="decimal"
-                min="1.01"
-                step="0.01"
+                min="1"
+                step="1000"
                 type="number"
-                value={minimumDecimalOdds}
-                onChange={(event) => setMinimumDecimalOdds(event.target.value)}
+                value={bankroll}
+                onChange={(event) => setBankroll(event.target.value)}
               />
             </label>
+            <label>
+              <span>Kelly fraction</span>
+              <select
+                aria-label="Kelly fraction"
+                value={kellyMultiplier}
+                onChange={(event) => setKellyMultiplier(event.target.value as KellyMultiplier)}
+              >
+                <option value="quarter">Quarter Kelly</option>
+                <option value="half">Half Kelly</option>
+                <option value="full">Full Kelly</option>
+              </select>
+            </label>
+            <label className="toggle-control">
+              <input
+                aria-label="Use Kelly sizing"
+                type="checkbox"
+                checked={useKellySizing}
+                onChange={(event) => setUseKellySizing(event.target.checked)}
+              />
+              <span>Use Kelly sizing</span>
+            </label>
+            {!useKellySizing ? (
+              <label>
+                <span>Manual requested stake</span>
+                <input
+                  aria-label="Manual requested stake"
+                  inputMode="decimal"
+                  min="1"
+                  step="100"
+                  type="number"
+                  value={manualStake}
+                  onChange={(event) => setManualStake(event.target.value)}
+                />
+              </label>
+            ) : null}
             <button type="button" onClick={buildRoute} disabled={!canBuild}>
               Build simulated route
             </button>
           </div>
+
+          <div className="execution-totals pricing-policy">
+            <Metric label="Fair odds" value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"} />
+            <Metric
+              label="Calculated minimum odds"
+              value={pricingPolicy ? formatDecimalOdds(pricingPolicy.minimumDecimalOdds) : "-"}
+            />
+            <Metric
+              label="Full Kelly"
+              value={fullKellyFraction === null ? "-" : formatPrecisePercentage(fullKellyFraction)}
+            />
+            <Metric
+              label={`Applied ${labelKellyMultiplier(kellyMultiplier)}`}
+              value={kellyPolicy ? formatPrecisePercentage(kellyPolicy.appliedKellyFraction) : "-"}
+            />
+            <Metric
+              label={useKellySizing ? "Suggested stake" : "Manual target stake"}
+              value={Number.isFinite(targetStake) && targetStake > 0 ? formatCurrency(targetStake) : "-"}
+            />
+            <Metric label="Sizing mode" value={useKellySizing ? "Kelly" : "Manual"} />
+          </div>
+          <p className="execution-disclaimer">
+            Required edge is the minimum expected return implied by your probability. Kelly sizing is an educational
+            reference from your own belief, not a recommendation or guarantee.
+          </p>
 
           <div className="execution-routing-grid">
             <div className="execution-table">
@@ -324,8 +448,14 @@ function ExecutionAgentPanel({
                   <span>{quote.venueLabel}</span>
                   <strong>{formatDecimalOdds(quote.decimalOdds)}</strong>
                   <span>{formatCurrency(quote.availableStake)}</span>
-                  <span className={quote.decimalOdds >= parsedMinimumOdds ? "valid" : "invalid"}>
-                    {quote.decimalOdds >= parsedMinimumOdds ? "Eligible" : "Below minimum"}
+                  <span
+                    className={
+                      pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds ? "valid" : "invalid"
+                    }
+                  >
+                    {pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds
+                      ? "Eligible"
+                      : "Below minimum"}
                   </span>
                 </div>
               ))}
@@ -334,10 +464,10 @@ function ExecutionAgentPanel({
             <div className="execution-table">
               <div className="panel-heading">
                 <h3>Actual routed fills</h3>
-                <span>{route ? `${route.fills.length} fills` : "Not built"}</span>
+                <span>{plan ? `${plan.route.fills.length} fills` : "Not built"}</span>
               </div>
-              {route && route.fills.length > 0 ? (
-                route.fills.map((fill) => (
+              {plan && plan.route.fills.length > 0 ? (
+                plan.route.fills.map((fill) => (
                   <div className="execution-row" key={fill.quoteId}>
                     <span>{fill.venueLabel}</span>
                     <strong>{formatDecimalOdds(fill.decimalOdds)}</strong>
@@ -351,17 +481,26 @@ function ExecutionAgentPanel({
             </div>
           </div>
 
-          {route ? (
+          {plan ? (
             <div className="execution-totals">
-              <Metric label="Requested" value={formatCurrency(route.requestedStake)} />
-              <Metric label="Filled" value={formatCurrency(route.filledStake)} />
-              <Metric label="Unfilled" value={formatCurrency(route.unfilledStake)} />
+              <Metric label="Requested" value={formatCurrency(plan.route.requestedStake)} />
+              <Metric label="Filled" value={formatCurrency(plan.route.filledStake)} />
+              <Metric label="Unfilled" value={formatCurrency(plan.route.unfilledStake)} />
               <Metric
                 label="Weighted-average odds"
-                value={route.weightedAverageOdds === null ? "-" : formatDecimalOdds(route.weightedAverageOdds)}
+                value={
+                  plan.route.weightedAverageOdds === null ? "-" : formatDecimalOdds(plan.route.weightedAverageOdds)
+                }
               />
-              <Metric label="Estimated gross payout" value={formatCurrency(route.estimatedGrossPayout)} />
-              <Metric label="User-belief expected value" value={formatSignedCurrency(route.expectedValue)} />
+              <Metric label="Estimated gross payout" value={formatCurrency(plan.route.estimatedGrossPayout)} />
+              <Metric
+                label="Expected return at routed odds"
+                value={
+                  plan.route.weightedAverageOdds === null
+                    ? "-"
+                    : formatPercentage(calculateExpectedReturn(plan.pricing.userProbability, plan.route.weightedAverageOdds))
+                }
+              />
             </div>
           ) : null}
         </>
@@ -378,12 +517,12 @@ function ReplayPanel({
   market,
   belief,
   canStart,
-  executionRoute,
+  executionPlan,
 }: {
   market: MarketSnapshot;
   belief: BeliefByOutcome;
   canStart: boolean;
-  executionRoute: ExecutionRoute | null;
+  executionPlan: ExecutionPlan | null;
 }) {
   const [snapshot, setSnapshot] = useState<EvaluationSnapshot | null>(null);
   const [cursor, setCursor] = useState(0);
@@ -417,7 +556,7 @@ function ReplayPanel({
   }, [isPlaying, speed]);
 
   function startReplay() {
-    const frozenSnapshot = freezeEvaluationSnapshot(market, belief, new Date().toISOString(), executionRoute);
+    const frozenSnapshot = freezeEvaluationSnapshot(market, belief, new Date().toISOString(), executionPlan);
     if (!frozenSnapshot) {
       return;
     }
@@ -512,6 +651,14 @@ function ReplayPanel({
                 weighted-average odds.
               </p>
             ) : null}
+            {snapshot.executionPlan ? (
+              <p>
+                Frozen policy: {formatPercentage(snapshot.executionPlan.pricing.userProbability)} belief,{" "}
+                {formatPercentage(snapshot.executionPlan.pricing.requiredEdge)} required edge,{" "}
+                {formatDecimalOdds(snapshot.executionPlan.pricing.minimumDecimalOdds)} minimum odds,{" "}
+                {formatCurrency(snapshot.executionPlan.targetStake)} target stake.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -598,6 +745,7 @@ function ResultReceiptPanel({
       {snapshot.executionRoute ? (
         <SimulatedSettlementPanel
           route={snapshot.executionRoute}
+          plan={snapshot.executionPlan}
           selectedOutcome={`${settlement.label} match result`}
           occurred={settlement.occurred}
         />
@@ -608,10 +756,12 @@ function ResultReceiptPanel({
 
 function SimulatedSettlementPanel({
   route,
+  plan,
   selectedOutcome,
   occurred,
 }: {
   route: ExecutionRoute;
+  plan: ExecutionPlan | null;
   selectedOutcome: string;
   occurred: boolean;
 }) {
@@ -626,6 +776,28 @@ function SimulatedSettlementPanel({
       </div>
       <dl>
         <ReceiptRow label="Selected outcome" value={selectedOutcome} />
+        {plan ? (
+          <>
+            <ReceiptRow
+              label="Frozen pricing policy"
+              value={`${formatPercentage(plan.pricing.userProbability)} belief | ${formatPercentage(
+                plan.pricing.requiredEdge,
+              )} required edge | ${formatDecimalOdds(plan.pricing.minimumDecimalOdds)} minimum odds`}
+            />
+            <ReceiptRow
+              label="Frozen sizing policy"
+              value={
+                plan.sizingMode === "kelly"
+                  ? `${labelKellyMultiplier(plan.kellyMultiplier)} Kelly from ${formatCurrency(
+                      plan.bankroll ?? 0,
+                    )} bankroll | ${formatPrecisePercentage(plan.fullKellyFraction)} full | ${formatPrecisePercentage(
+                      plan.appliedKellyFraction,
+                    )} applied`
+                  : `Manual target stake ${formatCurrency(plan.targetStake)}`
+              }
+            />
+          </>
+        ) : null}
         <ReceiptRow label="Filled stake" value={formatCurrency(route.filledStake)} />
         <ReceiptRow
           label="Weighted-average odds"
@@ -702,8 +874,24 @@ function formatSignedCurrency(value: number): string {
   return `${sign}${formatCurrency(value)}`;
 }
 
+function formatPrecisePercentage(probability: number): string {
+  return `${(probability * 100).toFixed(2)}%`;
+}
+
 function formatDecimalOdds(value: number): string {
   return value.toFixed(2);
+}
+
+function labelKellyMultiplier(multiplier: KellyMultiplier | null): string {
+  if (multiplier === "quarter") {
+    return "Quarter";
+  }
+
+  if (multiplier === "full") {
+    return "Full";
+  }
+
+  return "Half";
 }
 
 function StatePanel({ snapshot }: { snapshot: Exclude<SnapshotState, { status: "ready" }> }) {
