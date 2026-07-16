@@ -68,7 +68,7 @@ function requiredMillisToIso(value: unknown, field: string): string {
   return new Date(value).toISOString();
 }
 
-function optionalScore(value: unknown): { score1: number; score2: number } | null {
+function optionalScore(value: unknown): { score1: number | null; score2: number | null } | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -86,19 +86,33 @@ function optionalScore(value: unknown): { score1: number; score2: number } | nul
   };
 }
 
-function optionalGoals(value: unknown, participant: string): number {
-  if (!value || typeof value !== "object") {
-    return 0;
+function optionalGoals(value: unknown, participant: string): number | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TxlineNormalizationError(
+      `Score ${participant} must be an object when present.`,
+      "ambiguous_data",
+    );
   }
 
   const total = (value as Record<string, unknown>).Total;
-  if (!total || typeof total !== "object") {
-    return 0;
+  if (total === undefined) {
+    return null;
+  }
+
+  if (!total || typeof total !== "object" || Array.isArray(total)) {
+    throw new TxlineNormalizationError(
+      `Score ${participant}.Total must be an object when present.`,
+      "ambiguous_data",
+    );
   }
 
   const goals = (total as Record<string, unknown>).Goals;
-  if (goals === null || goals === undefined) {
-    return 0;
+  if (goals === undefined) {
+    return null;
   }
 
   if (typeof goals !== "number" || !Number.isInteger(goals) || goals < 0) {

@@ -33,118 +33,6 @@
   },
   "events": [
     {
-      "occurredAt": "2026-07-10T21:19:31.797Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-10T21:19:31.797Z",
-        "sequence": 0,
-        "eventType": "coverage_update",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "coverage_update:0"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:03:02.517Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:03:02.517Z",
-        "sequence": 2,
-        "eventType": "connected",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "connected:2"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:11:24.212Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:11:24.212Z",
-        "sequence": 3,
-        "eventType": "venue",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "venue:3"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:12:04.837Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:12:04.837Z",
-        "sequence": 4,
-        "eventType": "players_warming_up",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "players_warming_up:4"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:12:27.390Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:12:27.390Z",
-        "sequence": 6,
-        "eventType": "pitch",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "pitch:6"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:12:30.493Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:12:30.493Z",
-        "sequence": 8,
-        "eventType": "weather",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "weather:8"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:12:46.510Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:12:46.510Z",
-        "sequence": 12,
-        "eventType": "lineups",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "lineups:12"
-      }
-    },
-    {
-      "occurredAt": "2026-07-14T18:24:44.597Z",
-      "type": "score_event",
-      "payload": {
-        "fixtureId": "18237038",
-        "occurredAt": "2026-07-14T18:24:44.597Z",
-        "sequence": 13,
-        "eventType": "jersey",
-        "score1": null,
-        "score2": null,
-        "period": null,
-        "rawReference": "jersey:13"
-      }
-    },
-    {
       "occurredAt": "2026-07-14T18:52:04.616Z",
       "type": "score_event",
       "payload": {
@@ -602,12 +490,12 @@
         "finalized": true,
         "sequence": 1026,
         "proofAvailable": false,
-        "locallyValidated": true,
+        "locallyValidated": false,
         "onchainValidated": false,
         "validationNotes": [
           "TxLINE score snapshot contained a game_finalised event.",
           "Final score was read from Score.Participant*.Total.Goals on that event.",
-          "No proof endpoint has been identified yet; on-chain validation was not attempted."
+          "No proof payload has been identified yet; local proof validation and on-chain validation were not attempted."
         ]
       }
     }
@@ -619,12 +507,12 @@
     "finalized": true,
     "sequence": 1026,
     "proofAvailable": false,
-    "locallyValidated": true,
+    "locallyValidated": false,
     "onchainValidated": false,
     "validationNotes": [
       "TxLINE score snapshot contained a game_finalised event.",
       "Final score was read from Score.Participant*.Total.Goals on that event.",
-      "No proof endpoint has been identified yet; on-chain validation was not attempted."
+      "No proof payload has been identified yet; local proof validation and on-chain validation were not attempted."
     ]
   },
   "source": {

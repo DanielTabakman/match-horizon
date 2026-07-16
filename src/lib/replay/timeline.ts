@@ -1,12 +1,18 @@
 import type { ResultReceipt, ScoreEvent } from "../domain";
 import type { MatchReplay, ReplayEvent } from "./types";
 
-export function buildReplayEvents(scoreEvents: ScoreEvent[], receipt: ResultReceipt): ReplayEvent[] {
-  const events: ReplayEvent[] = scoreEvents.map((event) => ({
-    occurredAt: event.occurredAt,
-    type: "score_event",
-    payload: event,
-  }));
+export function buildReplayEvents(
+  scoreEvents: ScoreEvent[],
+  receipt: ResultReceipt,
+  replayStartsAt: string,
+): ReplayEvent[] {
+  const events: ReplayEvent[] = scoreEvents
+    .filter((event) => Date.parse(event.occurredAt) >= Date.parse(replayStartsAt))
+    .map((event) => ({
+      occurredAt: event.occurredAt,
+      type: "score_event",
+      payload: event,
+    }));
 
   const finalEvent = scoreEvents.find((event) => event.sequence === receipt.sequence);
   events.push({
@@ -64,12 +70,24 @@ export function validateReplay(replay: MatchReplay): string[] {
     errors.push("Replay result receipt must be finalized.");
   }
 
-  if (!receipt.locallyValidated) {
-    errors.push("Replay result receipt must be locally validated.");
-  }
-
   if (receipt.finalScore1 < 0 || receipt.finalScore2 < 0) {
     errors.push("Replay final scores must be non-negative.");
+  }
+
+  const marketCapturedAtMs = Date.parse(replay.initialMarket.capturedAt);
+  if (!Number.isFinite(marketCapturedAtMs)) {
+    errors.push("Replay initial market capturedAt must be a valid timestamp.");
+  } else if (
+    replay.events.some((event) => Date.parse(event.occurredAt) < marketCapturedAtMs)
+  ) {
+    errors.push("Replay playable events must not predate the initial market snapshot.");
+  }
+
+  if (
+    finalizationEvents.length === 1 &&
+    JSON.stringify(finalizationEvents[0].payload) !== JSON.stringify(receipt)
+  ) {
+    errors.push("Replay finalization event payload must match the top-level result receipt.");
   }
 
   const finalScoreEvent = scoreEvents

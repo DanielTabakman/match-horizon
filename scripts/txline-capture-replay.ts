@@ -73,7 +73,7 @@ async function main() {
     capturedAt,
     fixture,
     initialMarket,
-    events: buildReplayEvents(scoreEvents, resultReceipt),
+    events: buildReplayEvents(scoreEvents, resultReceipt, initialMarket.capturedAt),
     resultReceipt,
     source: {
       fixture: "test-fixtures/txline/fixtures-snapshot.json captured on 2026-07-14",

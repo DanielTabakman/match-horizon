@@ -27,12 +27,12 @@ export function buildResultReceiptFromScores(fixtureId: string, events: ScoreEve
     finalized: true,
     sequence: finalEvent.sequence,
     proofAvailable: false,
-    locallyValidated: true,
+    locallyValidated: false,
     onchainValidated: false,
     validationNotes: [
       "TxLINE score snapshot contained a game_finalised event.",
       "Final score was read from Score.Participant*.Total.Goals on that event.",
-      "No proof endpoint has been identified yet; on-chain validation was not attempted.",
+      "No proof payload has been identified yet; local proof validation and on-chain validation were not attempted.",
     ],
   };
 }
