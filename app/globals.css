@@ -418,7 +418,7 @@ button:disabled {
 
 .execution-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -432,6 +432,25 @@ button:disabled {
   color: #62665d;
   font-size: 12px;
   font-weight: 700;
+}
+
+.toggle-control {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.toggle-control input {
+  width: auto;
+}
+
+.execution-disclaimer {
+  max-width: none;
+  color: #62665d;
+  font-size: 13px;
+}
+
+.pricing-policy {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
 
 .execution-routing-grid {

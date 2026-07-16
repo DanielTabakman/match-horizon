@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import replayCapture from "../../../test-fixtures/replay/france-spain-18237038.json";
+import { DEMO_LIQUIDITY_BOOK } from "../execution/demoLiquidity";
+import { calculateKellySizingPolicy, type ExecutionPlan } from "../execution/pricing";
+import { buildExecutionRoute } from "../execution/router";
 import type { MatchReplay } from "./types";
 import { freezeEvaluationSnapshot, projectReplay, settleExpression } from "./controller";
 
@@ -27,6 +30,68 @@ describe("replay controller", () => {
         participant_2: 0.45,
       },
     });
+  });
+
+  it("freezes the original pricing and sizing policy with the execution route", () => {
+    const policy = calculateKellySizingPolicy({
+      userProbability: 0.5,
+      requiredEdge: 0.1,
+      bankroll: 120000,
+      kellyMultiplier: "half",
+    });
+    const route = buildExecutionRoute(
+      {
+        outcomeId: "participant_2",
+        requestedStake: policy.suggestedStake,
+        minimumDecimalOdds: policy.minimumDecimalOdds,
+        userProbability: policy.userProbability,
+      },
+      DEMO_LIQUIDITY_BOOK,
+    );
+    const plan: ExecutionPlan = {
+      pricing: policy,
+      sizingMode: "kelly",
+      bankroll: policy.bankroll,
+      kellyMultiplier: policy.kellyMultiplier,
+      fullKellyFraction: policy.fullKellyFraction,
+      appliedKellyFraction: policy.appliedKellyFraction,
+      targetStake: policy.suggestedStake,
+      route,
+    };
+
+    const mutableBelief = {
+      participant_1: 0.3,
+      draw: 0.2,
+      participant_2: 0.5,
+    };
+    const snapshot = freezeEvaluationSnapshot(
+      replay.initialMarket,
+      mutableBelief,
+      "2026-07-16T19:00:00.000Z",
+      plan,
+    );
+    mutableBelief.participant_2 = 0.4;
+
+    expect(snapshot?.executionPlan).toMatchObject({
+      pricing: {
+        userProbability: 0.5,
+        requiredEdge: 0.1,
+        fairDecimalOdds: 2,
+        minimumDecimalOdds: 2.2,
+      },
+      sizingMode: "kelly",
+      bankroll: 120000,
+      kellyMultiplier: "half",
+      targetStake: 5000,
+    });
+    expect(snapshot?.executionPlan?.fullKellyFraction).toBeCloseTo(1 / 12);
+    expect(snapshot?.executionPlan?.appliedKellyFraction).toBeCloseTo(1 / 24);
+    expect(snapshot?.executionPlan?.route.fills.map((fill) => fill.quoteId)).toEqual([
+      "spain-a",
+      "spain-b",
+      "spain-c",
+    ]);
+    expect(snapshot?.belief.participant_2).toBe(0.5);
   });
 
   it("does not freeze invalid or non-positive expressions", () => {
