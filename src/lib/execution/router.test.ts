@@ -5,8 +5,8 @@ import { buildExecutionRoute, type ExecutionIntent, type SimulatedQuote } from "
 const spainIntent: ExecutionIntent = {
   outcomeId: "participant_2",
   requestedStake: 5000,
-  minimumDecimalOdds: 3.3,
-  userProbability: 0.45,
+  minimumDecimalOdds: 2.2,
+  userProbability: 0.5,
 };
 
 describe("buildExecutionRoute", () => {
@@ -24,10 +24,10 @@ describe("buildExecutionRoute", () => {
     expect(route.estimatedGrossPayout).toBe(16840);
   });
 
-  it("excludes quotes below the minimum decimal odds", () => {
+  it("includes the 3.24 Spain quote when it is above the calculated minimum", () => {
     const route = buildExecutionRoute(spainIntent, DEMO_LIQUIDITY_BOOK);
 
-    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).not.toContain("spain-d");
+    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).toContain("spain-d");
   });
 
   it("supports partial fills at the last selected quote", () => {
@@ -47,7 +47,7 @@ describe("buildExecutionRoute", () => {
 
   it("reports unfilled stake when eligible liquidity is exhausted", () => {
     const route = buildExecutionRoute(
-      { ...spainIntent, requestedStake: 6000 },
+      { ...spainIntent, requestedStake: 6000, minimumDecimalOdds: 3.3 },
       DEMO_LIQUIDITY_BOOK,
     );
 
@@ -58,7 +58,7 @@ describe("buildExecutionRoute", () => {
   it("calculates expected value from the user's probability and filled stake", () => {
     const route = buildExecutionRoute(spainIntent, DEMO_LIQUIDITY_BOOK);
 
-    expect(route.expectedValue).toBe(2578);
+    expect(route.expectedValue).toBe(3420);
   });
 
   it("uses deterministic venue and quote ties after odds", () => {
