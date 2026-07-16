@@ -1,12 +1,57 @@
 # Match Horizon
 
-Match Horizon is a narrow TxLINE-powered World Cup demo for comparing a market's match-result probabilities with a user's own belief, building a simulated execution route for the clearest positive disagreement, then resolving that view through a deterministic replay of a completed fixture.
+Match Horizon is a TxLINE-powered market-decision demo. It compares a market's match-result probabilities with a user's own belief, translates that belief into fair odds, identifies the clearest disagreement, builds a simulated execution route, and resolves the frozen decision through a deterministic replay of a completed fixture.
 
 Public demo: https://match-horizon.vercel.app
 
 Repository: https://github.com/DanielTabakman/match-horizon
 
-Before the execution-routing extension, the project owner smoke-tested the base production deployment in an incognito desktop browser and at mobile width on July 16, 2026. This execution-routing branch has passed local desktop and mobile-width smoke tests, but it has not yet been merged, deployed to production, or smoke-tested at the public URL.
+The execution-routing build is merged and deployed. The project owner smoke-tested the production flow in an incognito desktop browser and at mobile width on July 16, 2026. The public app shows the Execution Agent, builds the simulated route, completes the deterministic replay, and displays separate TxLINE result and simulated-settlement receipts.
+
+## Why This Matters
+
+Match Horizon uses a sports market because the outcome is easy to understand, but the underlying reasoning applies anywhere uncertain outcomes are priced: prediction markets, options, insurance, forecasting, and risk management.
+
+### Markets turn beliefs into prices
+
+A market price is not just a number. It can be interpreted as a compressed expression of what participants collectively believe, adjusted by supply, demand, fees, risk preferences, and available liquidity.
+
+For a simple event contract, probability and fair decimal odds are inverses:
+
+```text
+fair decimal odds = 1 / probability
+```
+
+A `50%` probability therefore implies fair decimal odds of `2.00`. If that probability estimate is correct, `2.00` is the theoretical break-even price before fees and other frictions.
+
+### Opportunity begins with disagreement
+
+A prediction by itself is not enough. A person can correctly think Spain is likely to win and still have no attractive trade if the market already prices Spain even more aggressively.
+
+The relevant quantity is disagreement:
+
+```text
+user probability - market probability
+```
+
+A positive disagreement means the user assigns a higher probability to an outcome than the market reference does. Match Horizon makes that comparison explicit instead of forcing the user to reason indirectly from quoted odds.
+
+### A theoretical edge is not yet an executable edge
+
+Even when a user disagrees with the market, the available execution price matters. Fair odds describe the user's theoretical break-even point. Minimum acceptable odds describe the worst real price the user is willing to take.
+
+Those are different concepts:
+
+- fair odds answer, "At what price does my belief break even?"
+- minimum acceptable odds answer, "What is the worst available price I will actually accept?"
+
+Execution also depends on available size. A good quoted price with only a small amount of liquidity cannot fill a large order. A router therefore has to filter unacceptable quotes, take better prices first, and split the order across venues while tracking the weighted-average result.
+
+### Settlement should preserve the original decision
+
+A useful decision system should not judge a past choice using beliefs or prices entered afterward. Match Horizon freezes the user's belief, selected expression, and simulated execution route when replay begins, then resolves that frozen plan against the observed result.
+
+This creates a basic decision receipt: what the market implied, what the user believed, what price was required, what route was available, and what eventually happened.
 
 ## Product Flow
 
