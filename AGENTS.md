@@ -9,10 +9,23 @@ Before modifying code:
 1. Read `CURRENT_TASK.md`.
 2. Read the active GitHub issue linked from that file, using `gh issue view` when available.
 3. Read the project documents referenced by the task or issue.
-4. Inspect `git status -sb` and preserve unrelated work.
-5. Work only on the active task and stop at its acceptance gate.
+4. Read `docs/EXECUTION_RECOVERY_PROTOCOL.md`.
+5. Inspect `git status -sb` and preserve unrelated work.
+6. Work only on the active task and stop at its acceptance gate.
 
 If `CURRENT_TASK.md` says `Status: BLOCKED`, do not invent work around the blocker. Report the smallest concrete action needed from Daniel.
+
+## Durable progress and stalled sessions
+
+GitHub state is durable; agent conversations are disposable.
+
+- Commit and push the first coherent, testable slice early.
+- Open a draft pull request as soon as the work is inspectable; do not wait for polish.
+- Work that exists only inside a conversation or unpushed working tree is not safely in progress.
+- When a session stalls, follow the one-attempt recovery procedure in `docs/EXECUTION_RECOVERY_PROTOCOL.md`.
+- Continue a stalled session only when it can identify its branch, commit, changed files, commands run, exact blocker, and smallest next action.
+- Replace a session that cannot expose useful repository state or repeatedly discusses the task without executing.
+- Never use repeated `continue` or `try again` loops as a substitute for a branch, commit, draft PR, or concrete blocker.
 
 ## Instruction hierarchy
 
@@ -45,7 +58,8 @@ This repository is independent from MSOS and Autobuilder during the hackathon.
 - Do not use workspace links, submodules, local-path dependencies, or copied environment files from MSOS or Autobuilder.
 - Reimplement only the minimum logic required for this demo.
 - Any future integration with MSOS requires a separate post-hackathon migration decision.
-- Do not invoke or integrate Autobuilder unless Daniel explicitly approves it for this repository in the current conversation.
+- Until the hackathon submission is complete, do not invoke, modify, configure, deploy through, or point Autobuilder at Match Horizon.
+- A future Autobuilder exception requires Daniel's explicit approval for one bounded action after its risk is reviewed; general tool approval does not waive repository isolation.
 
 ## Hard scope boundaries
 
@@ -77,6 +91,7 @@ Do not add any of the following unless explicitly requested:
 9. Do not refactor unrelated code.
 10. Run build, typecheck, lint, and tests before declaring a task complete.
 11. Do not use breaking dependency upgrades merely to silence an audit warning without reviewing the impact.
+12. Preserve parallel ownership: Issue #3 owns the core page and UI; Issue #4 capture work owns replay capture, fixtures, timeline utilities, validation, tests, and replay documentation until UI integration is explicitly assigned.
 
 ## Completion report
 
