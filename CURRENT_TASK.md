@@ -1,57 +1,76 @@
 # Current Task
 
-**Status:** ISSUE #3 MERGED — ISSUE #4 REPLAY FOUNDATION MERGED — REPLAY UI PRIMARY
+**Status:** CORE DEMO MERGED — ISSUE #5 DEPLOYMENT AND SUBMISSION PRIMARY
 
 **Completed foundations:**
 
-- [#10 — Build Issue #3 belief comparison slice](https://github.com/DanielTabakman/match-horizon/pull/10) is merged.
-- [#11 — Add deterministic replay capture foundation](https://github.com/DanielTabakman/match-horizon/pull/11) is merged.
+- [#10 — Belief comparison](https://github.com/DanielTabakman/match-horizon/pull/10) is merged.
+- [#11 — Deterministic replay capture](https://github.com/DanielTabakman/match-horizon/pull/11) is merged.
+- [#14 — Replay UI and result receipt](https://github.com/DanielTabakman/match-horizon/pull/14) is merged.
+- [#4 — Historical replay](https://github.com/DanielTabakman/match-horizon/issues/4) is complete.
 
-**Active issue:** [#4 — Capture and play one deterministic historical match replay](https://github.com/DanielTabakman/match-horizon/issues/4)
+**Active issue:** [#5 — Deploy and prepare the submission](https://github.com/DanielTabakman/match-horizon/issues/5)
 
-**Dependency state:** The belief-comparison page and deterministic offline replay are both stable on `main`. One integration worker now owns replay UI and result-receipt integration.
+**Submission deadline:** July 19, 2026 at 23:59 UTC / 7:59 PM America/Toronto.
 
-## Primary workstream — replay UI integration
-
-Begin from current `main` in a clean worktree and extend the merged Issue #3 page using only the committed replay `test-fixtures/replay/france-spain-18237038.json`.
-
-Implement the smallest coherent end-to-end flow:
-
-1. The user enters a valid three-way belief totaling 100%.
-2. Starting the replay freezes an evaluation snapshot containing the user's probabilities, initial market, strongest positive disagreement, and selected match-result expression.
-3. Replay controls provide play, pause, restart, and at least one accelerated speed.
-4. Playback is deterministic and uses the committed event ordering; restarting produces the same state sequence.
-5. Score display changes only when a replay event contains observed score totals. Never initialize, reset, or fill an unknown score with an invented zero.
-6. Show a concise recent-event timeline. Do not expose raw TxLINE payload structures in the UI.
-7. Historical odds remain fixed at the real initial market snapshot. State plainly that no historical odds movement was available; do not animate or imply market movement.
-8. On finalization, settle the selected three-way expression deterministically from the real final score and show whether it occurred.
-9. Show a concise result receipt with:
-   - fixture and final score;
-   - original user probabilities;
-   - initial TxLINE market probabilities;
-   - selected expression and outcome;
-   - `TxLINE data received`;
-   - `Proof available: no`;
-   - `Proof structure checked: no`;
-   - `On-chain validated: no`.
-
-## Engineering requirements
-
-- Keep replay/controller and expression-settlement logic pure where practical and add unit tests.
-- Preserve the existing normalized domain boundary; UI must not consume raw TxLINE schemas.
-- Preserve the Issue #3 belief editor, disagreement table, error states, accessibility, deterministic UTC formatting, and mobile behavior.
-- Use a separate component or clearly bounded integration structure rather than turning the page into an untestable monolith.
-- Open a draft PR once play/pause/restart drives the committed replay and the score/event state is visible. Do not wait for final styling.
-
-## Acceptance gate
-
-A judge can locally complete this exact flow without network access:
+The complete judge flow is now on `main`:
 
 **Market belief → Personal belief → Disagreement → Expression → Deterministic replay → Final result receipt**
 
-The replay restarts deterministically, preserves unknown scores as unknown, reaches the real France 0–Spain 2 final result, settles the frozen expression correctly, and uses precise verification language.
+## Primary workstream A — deploy and smoke-test
 
-Required checks:
+Deploy current `main` as a separate public project, preferably on Vercel.
+
+Requirements:
+
+- Use the `DanielTabakman/match-horizon` repository and current `main`.
+- Keep the deployment separate from MSOS and Autobuilder.
+- The judge flow must default to the bundled committed replay and require no network access after the page loads.
+- No TxLINE credential is required for the public judge flow. Do not add a credential or live API dependency merely for deployment.
+- Record the public application URL in the README and submission checklist after it is stable.
+
+Run an incognito desktop and mobile-width smoke test covering:
+
+1. page loads without authentication;
+2. real France vs Spain market probabilities are visible;
+3. belief inputs accept a valid 100% total;
+4. disagreement and selected expression are understandable;
+5. Start, Pause, Play, Restart, 1x, and 4x controls work;
+6. unknown scores are not displayed as invented zeroes;
+7. replay reaches the real France 0–Spain 2 result;
+8. restart produces the same visible sequence and result;
+9. receipt says `TxLINE data received: yes`, `Proof available: no`, `Proof structure checked: no`, and `On-chain validated: no`;
+10. no secrets, console-breaking errors, horizontal mobile overflow, or unusable controls are present.
+
+Only fix demonstrated demo-breaking defects. Do not redesign the product.
+
+## Approved parallel workstream B — documentation and submission package
+
+Use a separate clean worktree and avoid application-code files unless a reviewed factual correction requires one.
+
+Owned paths:
+
+- `README.md`
+- `docs/` submission, architecture, demo, and checklist files
+
+Deliver:
+
+- accurate product summary and core flow;
+- architecture overview;
+- exact TxLINE categories and endpoints used;
+- local setup and validation commands;
+- deterministic replay explanation;
+- known limitations, including fixed historical market probabilities;
+- precise proof and on-chain verification language;
+- TxLINE API feedback;
+- public application link once available;
+- demo script under five minutes;
+- technical submission summary;
+- completed submission checklist.
+
+Do not describe the deployed demo as live, continuously updating, cryptographically verified, proof-validated, or on-chain validated. The demo uses real captured TxLINE data and a deterministic bundled replay.
+
+## Required checks after any code change
 
 - `npm run replay:validate`
 - `npm test`
@@ -59,18 +78,30 @@ Required checks:
 - `npm run lint`
 - `npm run build`
 
+## Final acceptance gate
+
+- public application opens in an incognito browser;
+- desktop and mobile-width smoke tests pass;
+- deterministic replay completes and restarts correctly;
+- README accurately matches the implementation;
+- no credentials or private paths are exposed;
+- application URL, repository URL, demo video, technical summary, and checklist are ready;
+- every verification claim is supported by implemented evidence.
+
 ## Hard stops
 
-- Do not capture new data unless a demonstrated defect makes the committed replay unusable.
-- Do not add historical odds movement; it was not observed.
-- Do not add live-network dependency to the judge flow.
-- Do not claim proof validation or on-chain validation.
-- Do not add wagering, wallets, databases, accounts, AI analysis, extra sports, or extra market types.
 - Do not use, modify, configure, deploy through, or depend on MSOS or Autobuilder.
-- Do not begin broad visual redesign, architecture refactoring, or submission polish inside this task.
+- Do not add live TxLINE dependency to the judge flow.
+- Do not invent historical odds movement, proof payloads, or verification results.
+- Do not add wagering, wallets, databases, accounts, AI analysis, extra sports, or extra market types.
+- Do not start architecture refactoring or broad visual redesign.
 
-## Next workstream after this gate
+## Immediate priority
 
-Deployment and Issue #5 submission packaging: public app, receipt polish, README, demo script, video, and final submission.
+1. Deploy current `main` and obtain the public URL.
+2. Smoke-test the public application and fix only demonstrated blockers.
+3. Complete README and submission documents in parallel.
+4. Record the final demo video.
+5. Submit before the deadline.
 
 Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and push durable branch/PR state early.
