@@ -1,5 +1,7 @@
 # Technical Submission Summary
 
+Public demo: https://match-horizon.vercel.app
+
 Match Horizon is a Next.js hackathon prototype that translates captured TxLINE World Cup data into a deterministic market-belief comparison flow.
 
 ## What It Does
@@ -43,7 +45,7 @@ Final replay result:
 - `test-fixtures/replay/france-spain-18237038.json`: bundled deterministic replay.
 - `app/page.tsx` and `app/BeliefComparisonClient.tsx`: Next.js route and client UI.
 
-The public browser flow does not need a TxLINE credential. Private credentials are only needed for optional local probe and capture scripts.
+The deployed browser flow uses committed sanitized captures, makes no runtime TxLINE API request, and contains no TxLINE credential. Private credentials are needed only for optional local probe and capture scripts.
 
 ## Validation
 
@@ -59,9 +61,10 @@ npm run build
 
 `npm run replay:validate` verifies that the committed replay can load offline, is chronological, respects the market-start boundary, reaches finalization, and has a receipt score matching the observed `game_finalised` event.
 
+The project owner reported successful incognito desktop and mobile-width smoke tests against the production URL on July 16, 2026.
+
 ## Limitations
 
-- Public URL is pending until Daniel provides the Vercel deployment URL.
 - The demo supports one fixture and one market type.
 - Historical odds movement was not available for the completed fixture, so replay uses a fixed initial market snapshot.
 - `/api/scores/historical/18237038` and `/api/scores/updates/18237038` returned non-JSON data during capture.
