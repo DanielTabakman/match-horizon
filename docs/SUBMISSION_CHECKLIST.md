@@ -25,7 +25,7 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 - [x] Lint command exists: `npm run lint`.
 - [x] Build command exists: `npm run build`.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
-- [ ] Current branch checks run and passing for this documentation PR.
+- [x] Current branch checks run and passing for this documentation PR.
 - [ ] Incognito browser smoke test passes on the public URL.
 - [ ] Mobile-width smoke test passes on the public URL.
 
