@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import replayCapture from "../test-fixtures/replay/france-spain-18237038.json";
 import type { Fixture, MarketSnapshot, OutcomeQuote } from "../src/lib/domain";
 import {
   compareBeliefsToMarket,
@@ -8,6 +9,13 @@ import {
   formatPercentage,
   type BeliefByOutcome,
 } from "../src/lib/beliefComparison";
+import type { EvaluationSnapshot, ReplayProjection } from "../src/lib/replay/controller";
+import {
+  freezeEvaluationSnapshot,
+  projectReplay,
+  settleExpression,
+} from "../src/lib/replay/controller";
+import type { MatchReplay } from "../src/lib/replay/types";
 
 export type SnapshotState =
   | { status: "loading" }
@@ -25,6 +33,9 @@ const DEFAULT_BELIEF: BeliefByOutcome = {
   draw: 0.25,
   participant_2: 0.35,
 };
+
+const REPLAY = replayCapture as MatchReplay;
+const REPLAY_SPEEDS = [1, 4] as const;
 
 const timestampFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -175,7 +186,228 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
           )}
         </div>
       </section>
+
+      <ReplayPanel market={market} belief={belief} canStart={totalIsValid && comparison.strongestPositive !== null} />
     </main>
+  );
+}
+
+function ReplayPanel({
+  market,
+  belief,
+  canStart,
+}: {
+  market: MarketSnapshot;
+  belief: BeliefByOutcome;
+  canStart: boolean;
+}) {
+  const [snapshot, setSnapshot] = useState<EvaluationSnapshot | null>(null);
+  const [cursor, setCursor] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState<(typeof REPLAY_SPEEDS)[number]>(4);
+  const projection = useMemo<ReplayProjection>(() => projectReplay(REPLAY, cursor), [cursor]);
+  const isComplete = projection.cursor >= REPLAY.events.length;
+  const settlement =
+    snapshot && projection.finalizedReceipt
+      ? settleExpression(snapshot.selectedExpression, projection.finalizedReceipt, snapshot.market)
+      : null;
+
+  useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setCursor((current) => {
+        const next = Math.min(current + 1, REPLAY.events.length);
+        if (next >= REPLAY.events.length) {
+          window.clearInterval(interval);
+          setIsPlaying(false);
+        }
+
+        return next;
+      });
+    }, Math.max(120, 700 / speed));
+
+    return () => window.clearInterval(interval);
+  }, [isPlaying, speed]);
+
+  function startReplay() {
+    const frozenSnapshot = freezeEvaluationSnapshot(market, belief, new Date().toISOString());
+    if (!frozenSnapshot) {
+      return;
+    }
+
+    setSnapshot(frozenSnapshot);
+    setCursor(0);
+    setIsPlaying(true);
+  }
+
+  function restartReplay() {
+    setCursor(0);
+    setIsPlaying(Boolean(snapshot));
+  }
+
+  return (
+    <section className="panel replay-panel" aria-label="Deterministic match replay">
+      <div className="panel-heading replay-heading">
+        <div>
+          <h2>Deterministic replay</h2>
+          <span>Committed offline France vs Spain fixture</span>
+        </div>
+        <span>{snapshot ? `Frozen ${formatTimestamp(snapshot.capturedAt)}` : "Ready to freeze expression"}</span>
+      </div>
+
+      <div className="replay-layout">
+        <div className="scoreboard" aria-live="polite">
+          <span>{REPLAY.fixture.participant1}</span>
+          <strong>{formatScore(projection.score.score1)}</strong>
+          <span>{REPLAY.fixture.participant2}</span>
+          <strong>{formatScore(projection.score.score2)}</strong>
+        </div>
+
+        <div className="replay-controls">
+          {!snapshot ? (
+            <button type="button" onClick={startReplay} disabled={!canStart}>
+              Start replay
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={() => setIsPlaying(true)} disabled={isPlaying || isComplete}>
+                Play
+              </button>
+              <button type="button" onClick={() => setIsPlaying(false)} disabled={!isPlaying}>
+                Pause
+              </button>
+              <button type="button" onClick={restartReplay}>
+                Restart
+              </button>
+            </>
+          )}
+          <label className="speed-control">
+            <span>Speed</span>
+            <select
+              value={speed}
+              onChange={(event) => setSpeed(Number(event.target.value) as (typeof REPLAY_SPEEDS)[number])}
+            >
+              {REPLAY_SPEEDS.map((option) => (
+                <option key={option} value={option}>
+                  {option}x
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {!canStart && !snapshot ? (
+          <p className="validation" role="alert">
+            Enter a valid 100% belief with at least one positive disagreement to start the replay.
+          </p>
+        ) : null}
+
+        <div className="replay-note">
+          Historical odds movement was not available from TxLINE for this completed fixture. The market probabilities
+          stay fixed at the real initial snapshot.
+        </div>
+
+        {snapshot ? (
+          <div className="frozen-expression">
+            <p className="eyebrow">Frozen expression</p>
+            <h3>{snapshot.strongestPositive.label} match result</h3>
+            <p>
+              Your original belief was {formatPercentage(snapshot.belief[snapshot.selectedExpression])}; TxLINE was{" "}
+              {formatPercentage(snapshot.strongestPositive.marketProbability)}.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="timeline" aria-label="Recent replay events">
+          <div className="panel-heading">
+            <h3>Recent events</h3>
+            <span>
+              {projection.cursor} / {REPLAY.events.length}
+            </span>
+          </div>
+          {projection.recentEvents.length > 0 ? (
+            <ol>
+              {projection.recentEvents.map((event) => (
+                <li key={event.key}>
+                  <time dateTime={event.occurredAt}>{formatTimestamp(event.occurredAt)}</time>
+                  <span>{event.label}</span>
+                  <strong>{formatTimelineScore(event.score.score1, event.score.score2)}</strong>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="muted">No replay events have been played yet.</p>
+          )}
+        </div>
+
+        {snapshot && projection.finalizedReceipt && settlement ? (
+          <ResultReceiptPanel
+            snapshot={snapshot}
+            projection={projection}
+            settlement={settlement}
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ResultReceiptPanel({
+  snapshot,
+  projection,
+  settlement,
+}: {
+  snapshot: EvaluationSnapshot;
+  projection: ReplayProjection;
+  settlement: { label: string; occurred: boolean };
+}) {
+  const receipt = projection.finalizedReceipt;
+  if (!receipt) {
+    return null;
+  }
+
+  return (
+    <div className="result-receipt">
+      <div className="panel-heading">
+        <h3>Result receipt</h3>
+        <span>{settlement.occurred ? "Expression occurred" : "Expression did not occur"}</span>
+      </div>
+      <dl>
+        <ReceiptRow
+          label="Fixture and final score"
+          value={`${REPLAY.fixture.participant1} ${receipt.finalScore1}-${receipt.finalScore2} ${REPLAY.fixture.participant2}`}
+        />
+        <ReceiptRow label="Original user probabilities" value={formatOutcomeSet(snapshot.belief, snapshot.market)} />
+        <ReceiptRow
+          label="Initial TxLINE market probabilities"
+          value={formatOutcomeSet(
+            {
+              participant_1: snapshot.market.outcomes[0].probability,
+              draw: snapshot.market.outcomes[1].probability,
+              participant_2: snapshot.market.outcomes[2].probability,
+            },
+            snapshot.market,
+          )}
+        />
+        <ReceiptRow label="Selected expression and outcome" value={`${settlement.label} match result: ${settlement.occurred ? "occurred" : "did not occur"}`} />
+        <ReceiptRow label="TxLINE data received" value="yes" />
+        <ReceiptRow label="Proof available" value="no" />
+        <ReceiptRow label="Proof structure checked" value="no" />
+        <ReceiptRow label="On-chain validated" value="no" />
+      </dl>
+    </div>
+  );
+}
+
+function ReceiptRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
   );
 }
 
@@ -191,6 +423,24 @@ function MarketRow({ outcome }: { outcome: OutcomeQuote }) {
 
 function formatTimestamp(value: string): string {
   return `${timestampFormatter.format(new Date(value))} UTC`;
+}
+
+function formatScore(score: number | null): string {
+  return score === null ? "Unknown" : score.toString();
+}
+
+function formatTimelineScore(score1: number | null, score2: number | null): string {
+  if (score1 === null || score2 === null) {
+    return "Score not observed";
+  }
+
+  return `${score1}-${score2}`;
+}
+
+function formatOutcomeSet(values: BeliefByOutcome, market: MarketSnapshot): string {
+  return market.outcomes
+    .map((outcome) => `${outcome.label} ${formatPercentage(values[outcome.outcomeId])}`)
+    .join(" | ");
 }
 
 function StatePanel({ snapshot }: { snapshot: Exclude<SnapshotState, { status: "ready" }> }) {
