@@ -289,7 +289,8 @@ button:disabled {
 .replay-note,
 .frozen-expression,
 .timeline,
-.result-receipt {
+.result-receipt,
+.simulated-settlement {
   padding: 16px;
   border: 1px solid #d7d4c9;
   border-radius: 8px;
@@ -308,17 +309,20 @@ button:disabled {
 }
 
 .timeline,
-.result-receipt {
+.result-receipt,
+.simulated-settlement {
   grid-column: 1 / -1;
 }
 
 .timeline .panel-heading,
-.result-receipt .panel-heading {
+.result-receipt .panel-heading,
+.simulated-settlement .panel-heading {
   margin-bottom: 12px;
 }
 
 .timeline ol,
-.result-receipt dl {
+.result-receipt dl,
+.simulated-settlement dl {
   display: grid;
   gap: 10px;
   margin: 0;
@@ -326,7 +330,8 @@ button:disabled {
 }
 
 .timeline li,
-.result-receipt dl > div {
+.result-receipt dl > div,
+.simulated-settlement dl > div {
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(140px, 1fr) minmax(120px, auto);
   gap: 12px;
@@ -340,20 +345,131 @@ button:disabled {
 }
 
 .timeline time,
-.result-receipt dt {
+.result-receipt dt,
+.simulated-settlement dt {
   color: #62665d;
   font-size: 13px;
   font-weight: 700;
 }
 
 .timeline strong,
-.result-receipt dd {
+.result-receipt dd,
+.simulated-settlement dd {
   margin: 0;
   font-weight: 700;
 }
 
-.result-receipt dl > div {
+.result-receipt dl > div,
+.simulated-settlement dl > div {
   grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1fr);
+}
+
+.execution-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.execution-panel .panel-heading {
+  margin-bottom: 0;
+}
+
+.execution-panel .panel-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.simulation-badge {
+  justify-self: end;
+  padding: 7px 10px;
+  border: 1px solid #9a4b1d;
+  border-radius: 6px;
+  color: #9a4b1d;
+  background: #fff3e8;
+  font-size: 13px;
+}
+
+.execution-summary,
+.execution-totals {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.execution-totals {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+}
+
+.execution-summary > div,
+.execution-totals > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #ebe7dc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.execution-summary span,
+.execution-totals span {
+  color: #62665d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.execution-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.execution-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.execution-controls label span {
+  color: #62665d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.execution-routing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.execution-table {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.execution-table h3 {
+  font-size: 18px;
+}
+
+.execution-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(58px, auto) minmax(90px, auto) minmax(110px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid #ebe7dc;
+}
+
+.execution-row:first-of-type {
+  border-top: 0;
+}
+
+.execution-row span:last-child {
+  justify-self: end;
+}
+
+.simulated-settlement {
+  background: #f8fbff;
+  border-color: #bfd3dd;
 }
 
 .state-shell {
@@ -373,7 +489,11 @@ button:disabled {
   .fixture-band,
   .comparison-grid,
   .results-panel,
-  .replay-layout {
+  .replay-layout,
+  .execution-routing-grid,
+  .execution-controls,
+  .execution-summary,
+  .execution-totals {
     grid-template-columns: 1fr;
   }
 
@@ -408,8 +528,18 @@ button:disabled {
     display: inline;
   }
 
+  .simulation-badge {
+    justify-self: start;
+  }
+
   .timeline li,
-  .result-receipt dl > div {
+  .result-receipt dl > div,
+  .simulated-settlement dl > div,
+  .execution-row {
     grid-template-columns: 1fr;
+  }
+
+  .execution-row span:last-child {
+    justify-self: start;
   }
 }

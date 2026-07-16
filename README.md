@@ -1,6 +1,6 @@
 # Match Horizon
 
-Match Horizon is a narrow TxLINE-powered World Cup demo for comparing a market's match-result probabilities with a user's own belief, then resolving that view through a deterministic replay of a completed fixture.
+Match Horizon is a narrow TxLINE-powered World Cup demo for comparing a market's match-result probabilities with a user's own belief, building a simulated execution route for the clearest positive disagreement, then resolving that view through a deterministic replay of a completed fixture.
 
 Public demo: https://match-horizon.vercel.app
 
@@ -17,12 +17,14 @@ The implemented judge flow is:
 3. Enter personal probabilities for France, Draw, and Spain. The total must be exactly `100%`.
 4. See outcome-by-outcome disagreement, calculated as `user probability - market probability`.
 5. See the strongest positive disagreement and the plain match-result expression that represents it.
-6. Start the bundled deterministic replay.
-7. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
-8. Watch the replay reach the observed final result: France `0`, Spain `2`.
-9. Inspect the result receipt with the original user belief, initial market snapshot, expression result, TxLINE data-source status, proof status, and validation status.
+6. Build a simulated execution route against generic venue liquidity.
+7. Review requested stake, routed fills, weighted-average odds, estimated payout, and user-belief expected value.
+8. Start the bundled deterministic replay.
+9. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
+10. Watch the replay reach the observed final result: France `0`, Spain `2`.
+11. Inspect the real TxLINE result receipt and the separately labeled simulated execution settlement.
 
-The product is read-only. It does not place bets, custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
+The product is read-only. The execution route is a deterministic simulation only: no wager is submitted, no external venue is contacted, and no real sportsbook or exchange name is used. It does not custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
 
 ## Architecture
 
@@ -39,6 +41,8 @@ Normalized Match Horizon domain types
         |
         +--> deterministic replay timeline and receipt logic
         |
+        +--> simulated execution router and generic liquidity book
+        |
         v
 Next.js app route and React client UI
 ```
@@ -49,6 +53,8 @@ Key boundaries:
 - UI components consume normalized `Fixture`, `MarketSnapshot`, `ScoreEvent`, and `ResultReceipt` domain types.
 - The deployed judge flow uses committed captures and makes no runtime TxLINE API request.
 - Local TxLINE probe and capture scripts are available for maintainers, but they require private environment variables and are not part of the public browser flow.
+- Simulated venue liquidity lives under `src/lib/execution` and is not TxLINE data.
+- The simulated execution settlement is shown separately from the TxLINE result receipt.
 
 ## TxLINE Data Used
 
@@ -113,6 +119,23 @@ Earlier score-feed records are excluded when they predate the fixed initial mark
 Historical odds movement is not captured for this completed fixture. The replay keeps the real initial TxLINE market snapshot fixed while score and finalization events advance.
 
 This is intentional and documented. The app must not imply that it observed historical price movement after the initial capture.
+
+## Simulated Execution Layer
+
+Issue #18 adds a small deterministic execution-routing demo. The router validates the selected outcome, requested stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the user's minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple generic venues, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and user-belief expected value.
+
+The committed demo liquidity is generic and simulated. It is not a TxLINE payload, not a sportsbook integration, and not an exchange integration.
+
+Default Spain route:
+
+- `$500` at decimal odds `3.50`
+- `$2,000` at decimal odds `3.42`
+- `$2,500` at decimal odds `3.30`
+- Filled stake: `$5,000`
+- Weighted-average odds: `3.368`, displayed as `3.37`
+- Estimated gross payout: `$16,840`
+
+When replay starts, the current simulated route is frozen next to the frozen user belief and expression. Later input edits do not rewrite that frozen plan.
 
 ## Proof And On-Chain Validation Limitations
 

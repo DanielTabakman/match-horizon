@@ -2,16 +2,16 @@
 
 Public demo: https://match-horizon.vercel.app
 
-Match Horizon is a Next.js hackathon prototype that translates captured TxLINE World Cup data into a deterministic market-belief comparison flow.
+Match Horizon is a Next.js hackathon prototype that translates captured TxLINE World Cup data into a deterministic market-belief comparison and simulated execution-routing flow.
 
 ## What It Does
 
-The app opens a real France vs Spain World Cup fixture, displays normalized TxLINE three-way match-result probabilities, accepts a user's personal probabilities, calculates the strongest positive disagreement, recommends the plain supported match-result expression, replays the completed fixture, and shows a TxLINE-data-backed result receipt.
+The app opens a real France vs Spain World Cup fixture, displays normalized TxLINE three-way match-result probabilities, accepts a user's personal probabilities, calculates the strongest positive disagreement, recommends the plain supported match-result expression, builds a deterministic simulated execution route, replays the completed fixture, and shows a TxLINE-data-backed result receipt beside a separately labeled simulated execution settlement.
 
 The implemented flow is:
 
 ```text
-Market belief -> personal belief -> disagreement -> expression -> deterministic replay -> result receipt
+Market belief -> personal belief -> disagreement -> expression -> simulated route -> deterministic replay -> result receipt + simulated settlement
 ```
 
 ## TxLINE Integration
@@ -36,10 +36,26 @@ Final replay result:
 - Spain `2`
 - Finalization event: `game_finalised`, sequence `1026`
 
+## Simulated Execution Routing
+
+The execution layer is intentionally not TxLINE data. It uses a committed generic liquidity book with simulated venue labels for all three outcomes. The router validates the execution intent and quote book, filters quotes to the selected strongest positive outcome, excludes quotes below the user's minimum decimal odds, sorts by best odds first with deterministic tie-breaks, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and expected value using the user's probability.
+
+Default Spain example:
+
+- Requested stake: `$5,000`
+- Minimum decimal odds: `3.30`
+- Routed fills: `$500` at `3.50`, `$2,000` at `3.42`, `$2,500` at `3.30`
+- Filled stake: `$5,000`
+- Weighted-average odds: `3.368`, displayed as `3.37`
+- Estimated gross payout: `$16,840`
+
+The UI prominently states `Simulation only - no wager submitted`. No external betting API, real venue name, account, wallet, custody, AMM, order book, or smart contract is added.
+
 ## Architecture
 
 - `src/lib/txline`: TxLINE client, environment validation, raw schemas, sample helpers, and normalizers.
 - `src/lib/beliefComparison.ts`: deterministic probability comparison.
+- `src/lib/execution`: deterministic simulated router, generic demo liquidity, and unit tests.
 - `src/lib/replay`: replay timeline validation, projection, controller logic, and receipt construction.
 - `test-fixtures/txline`: sanitized committed fixture, odds, and score samples.
 - `test-fixtures/replay/france-spain-18237038.json`: bundled deterministic replay.
@@ -70,8 +86,8 @@ The project owner reported successful incognito desktop and mobile-width smoke t
 - `/api/scores/historical/18237038` and `/api/scores/updates/18237038` returned non-JSON data during capture.
 - No proof payload has been identified.
 - Local proof validation and on-chain validation were not executed.
-- The application is read-only and intentionally excludes wagering, custody, wallets, accounts, databases, extra sports, and extra market types.
+- The application is read-only and intentionally excludes wagering, external betting APIs, real venue names, custody, wallets, accounts, databases, smart contracts, AMMs, order books, extra sports, and extra market types.
 
 ## Submission Statement
 
-Match Horizon demonstrates a reusable market-reasoning pattern for sports: translate market data into probabilities, compare it with a user's belief, identify the clearest disagreement, and resolve the view against real captured outcome data. It is intentionally scoped as a reliable public demo rather than a betting product.
+Match Horizon demonstrates a reusable market-reasoning pattern for sports: translate market data into probabilities, compare it with a user's belief, identify the clearest disagreement, simulate how an execution agent could route generic liquidity, and resolve the view against real captured outcome data. It is intentionally scoped as a reliable public demo rather than a betting product.

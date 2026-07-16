@@ -15,8 +15,14 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] Disagreement calculation is tested.
 - [x] Strongest disagreement is explained.
 - [x] Expression recommendation is accurate and modest.
+- [x] Simulated Execution Agent panel is implemented.
+- [x] Generic simulated liquidity covers all three outcomes.
+- [x] Default Spain route fills `$5,000` at minimum decimal odds `3.30`.
+- [x] Simulated route shows filled stake, unfilled stake, weighted-average odds, payout, and expected value.
+- [x] UI states `Simulation only - no wager submitted`.
 - [x] Historical replay reaches final result.
 - [x] Result receipt is based on real TxLINE score data.
+- [x] Simulated execution settlement is labeled separately from the TxLINE result receipt.
 - [x] No live match is required for the core demo.
 
 ## Reliability
@@ -26,6 +32,7 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] Typecheck command exists: `npm run typecheck`.
 - [x] Lint command exists: `npm run lint`.
 - [x] Build command exists: `npm run build`.
+- [x] Execution router validation, filtering, sorting, fills, payout, and expected value are tested.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
 - [x] Incognito browser smoke test passes on the public URL.
@@ -50,6 +57,7 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] `/api/scores/snapshot/18237038` documented as returning `40` records and serving as replay score source.
 - [x] No invented historical odds movement.
 - [x] No invented score totals, finalization, proof payloads, or verification results.
+- [x] Simulated venue liquidity is documented as separate from real TxLINE data.
 
 ## Isolation
 
@@ -78,6 +86,9 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] README explains local setup and validation commands.
 - [x] README explains deterministic replay mode.
 - [x] README distinguishes TxLINE data, proof availability, proof structure checks, and on-chain validation.
+- [x] README distinguishes real TxLINE data from simulated venue liquidity and execution.
+- [x] Demo script distinguishes real TxLINE receipt from simulated execution settlement.
+- [x] Technical summary distinguishes TxLINE integration from simulated routing.
 - [x] Known limitations documented.
 - [x] TxLINE feedback drafted.
 - [x] Under-five-minute demo script created.
@@ -100,8 +111,10 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [ ] Shows real TxLINE-powered market data.
 - [ ] Shows user belief entry.
 - [ ] Shows disagreement result.
+- [ ] Shows simulated route build.
 - [ ] Shows replay controls.
 - [ ] Shows final receipt.
+- [ ] Shows separate simulated settlement.
 - [ ] Explains architecture briefly.
 - [ ] Mentions deterministic replay because matches may not be live.
 - [ ] States fixed historical market limitation.
