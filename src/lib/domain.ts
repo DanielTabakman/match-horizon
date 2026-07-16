@@ -32,3 +32,15 @@ export type ScoreEvent = {
   period: string | null;
   rawReference: string | null;
 };
+
+export type ResultReceipt = {
+  fixtureId: string;
+  finalScore1: number;
+  finalScore2: number;
+  finalized: boolean;
+  sequence: number | null;
+  proofAvailable: boolean;
+  locallyValidated: boolean;
+  onchainValidated: boolean;
+  validationNotes: string[];
+};

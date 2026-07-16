@@ -1,0 +1,555 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-16T18:02:13.363Z",
+  "fixture": {
+    "fixtureId": "18237038",
+    "participant1": "France",
+    "participant2": "Spain",
+    "startsAt": "2026-07-14T19:00:00.000Z",
+    "status": "unknown"
+  },
+  "initialMarket": {
+    "fixtureId": "18237038",
+    "marketType": "match_result",
+    "capturedAt": "2026-07-14T18:42:08.439Z",
+    "outcomes": [
+      {
+        "outcomeId": "participant_1",
+        "label": "France",
+        "probability": 0.37272
+      },
+      {
+        "outcomeId": "draw",
+        "label": "Draw",
+        "probability": 0.31837
+      },
+      {
+        "outcomeId": "participant_2",
+        "label": "Spain",
+        "probability": 0.30893
+      }
+    ],
+    "source": "txline_capture"
+  },
+  "events": [
+    {
+      "occurredAt": "2026-07-14T18:52:04.616Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T18:52:04.616Z",
+        "sequence": 14,
+        "eventType": "players_on_the_pitch",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "players_on_the_pitch:14"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T18:59:52.230Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T18:59:52.230Z",
+        "sequence": 15,
+        "eventType": "kickoff_team",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "kickoff_team:15"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T19:21:38.559Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T19:21:38.559Z",
+        "sequence": 217,
+        "eventType": "penalty",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "penalty:217"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T19:22:44.966Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T19:22:44.966Z",
+        "sequence": 222,
+        "eventType": "penalty_outcome",
+        "score1": 0,
+        "score2": 1,
+        "period": null,
+        "rawReference": "penalty_outcome:222"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T19:54:36.702Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T19:54:36.702Z",
+        "sequence": 478,
+        "eventType": "halftime_finalised",
+        "score1": 0,
+        "score2": 1,
+        "period": null,
+        "rawReference": "halftime_finalised:478"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:21:21.602Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:21:21.602Z",
+        "sequence": 621,
+        "eventType": "standby",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "standby:621"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:21:21.899Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:21:21.899Z",
+        "sequence": 622,
+        "eventType": "kickoff",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "kickoff:622"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:22:29.958Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:22:29.958Z",
+        "sequence": 638,
+        "eventType": "goal",
+        "score1": 0,
+        "score2": 3,
+        "period": null,
+        "rawReference": "goal:638"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:22:42.861Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:22:42.861Z",
+        "sequence": 640,
+        "eventType": "var",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "var:640"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:22:53.720Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:22:53.720Z",
+        "sequence": 641,
+        "eventType": "var_end",
+        "score1": 0,
+        "score2": 3,
+        "period": null,
+        "rawReference": "var_end:641"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:30:56.507Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:30:56.507Z",
+        "sequence": 738,
+        "eventType": "comment",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "comment:738"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:43:06.342Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:43:06.342Z",
+        "sequence": 844,
+        "eventType": "action_amend",
+        "score1": 0,
+        "score2": 2,
+        "period": null,
+        "rawReference": "action_amend:844"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:44:29.009Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:44:29.009Z",
+        "sequence": 862,
+        "eventType": "injury",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "injury:862"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:44:59.688Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:44:59.688Z",
+        "sequence": 865,
+        "eventType": "substitution",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "substitution:865"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:45:29.766Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:45:29.766Z",
+        "sequence": 866,
+        "eventType": "action_discarded",
+        "score1": 0,
+        "score2": 2,
+        "period": null,
+        "rawReference": "action_discarded:866"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:47:50.495Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:47:50.495Z",
+        "sequence": 897,
+        "eventType": "yellow_card",
+        "score1": 0,
+        "score2": 2,
+        "period": null,
+        "rawReference": "yellow_card:897"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:51:54.139Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:51:54.139Z",
+        "sequence": 930,
+        "eventType": "corner",
+        "score1": 0,
+        "score2": 2,
+        "period": null,
+        "rawReference": "corner:930"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:52:20.261Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:52:20.261Z",
+        "sequence": 937,
+        "eventType": "additional_time",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "additional_time:937"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:54:53.005Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:54:53.005Z",
+        "sequence": 958,
+        "eventType": "free_kick",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "free_kick:958"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:07.271Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:07.271Z",
+        "sequence": 1006,
+        "eventType": "danger_possession",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "danger_possession:1006"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:10.928Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:10.928Z",
+        "sequence": 1008,
+        "eventType": "high_danger_possession",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "high_danger_possession:1008"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:24.569Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:24.569Z",
+        "sequence": 1013,
+        "eventType": "shot",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "shot:1013"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:25.281Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:25.281Z",
+        "sequence": 1014,
+        "eventType": "possible",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "possible:1014"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:27.455Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:27.455Z",
+        "sequence": 1015,
+        "eventType": "possession",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "possession:1015"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:27.455Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:27.455Z",
+        "sequence": 1017,
+        "eventType": "goal_kick",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "goal_kick:1017"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:50.503Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:50.503Z",
+        "sequence": 1018,
+        "eventType": "attack_possession",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "attack_possession:1018"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:56.158Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:56.158Z",
+        "sequence": 1020,
+        "eventType": "throw_in",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "throw_in:1020"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:58:56.783Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:58:56.783Z",
+        "sequence": 1021,
+        "eventType": "safe_possession",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "safe_possession:1021"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:59:02.471Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:59:02.471Z",
+        "sequence": 1022,
+        "eventType": "status",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "status:1022"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:59:02.514Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:59:02.514Z",
+        "sequence": 1024,
+        "eventType": "clock_adjustment",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "clock_adjustment:1024"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T20:59:23.276Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T20:59:23.276Z",
+        "sequence": 1025,
+        "eventType": "disconnected",
+        "score1": null,
+        "score2": null,
+        "period": null,
+        "rawReference": "disconnected:1025"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T21:04:14.751Z",
+      "type": "score_event",
+      "payload": {
+        "fixtureId": "18237038",
+        "occurredAt": "2026-07-14T21:04:14.751Z",
+        "sequence": 1026,
+        "eventType": "game_finalised",
+        "score1": 0,
+        "score2": 2,
+        "period": null,
+        "rawReference": "game_finalised:1026"
+      }
+    },
+    {
+      "occurredAt": "2026-07-14T21:04:14.751Z",
+      "type": "finalization",
+      "payload": {
+        "fixtureId": "18237038",
+        "finalScore1": 0,
+        "finalScore2": 2,
+        "finalized": true,
+        "sequence": 1026,
+        "proofAvailable": false,
+        "locallyValidated": false,
+        "onchainValidated": false,
+        "validationNotes": [
+          "TxLINE score snapshot contained a game_finalised event.",
+          "Final score was read from Score.Participant*.Total.Goals on that event.",
+          "No proof payload has been identified yet; local proof validation and on-chain validation were not attempted."
+        ]
+      }
+    }
+  ],
+  "resultReceipt": {
+    "fixtureId": "18237038",
+    "finalScore1": 0,
+    "finalScore2": 2,
+    "finalized": true,
+    "sequence": 1026,
+    "proofAvailable": false,
+    "locallyValidated": false,
+    "onchainValidated": false,
+    "validationNotes": [
+      "TxLINE score snapshot contained a game_finalised event.",
+      "Final score was read from Score.Participant*.Total.Goals on that event.",
+      "No proof payload has been identified yet; local proof validation and on-chain validation were not attempted."
+    ]
+  },
+  "source": {
+    "fixture": "test-fixtures/txline/fixtures-snapshot.json captured on 2026-07-14",
+    "initialMarket": "test-fixtures/txline/odds-snapshot.json captured on 2026-07-14; completed-fixture live odds snapshot is now empty",
+    "scores": "/api/scores/snapshot/18237038",
+    "endpointFindings": [
+      {
+        "endpoint": "/api/fixtures/snapshot",
+        "result": "records",
+        "recordCount": 7,
+        "note": "Endpoint returned records."
+      },
+      {
+        "endpoint": "/api/odds/snapshot/18237038",
+        "result": "empty",
+        "recordCount": 0,
+        "note": "Endpoint returned no records."
+      },
+      {
+        "endpoint": "/api/scores/historical/18237038",
+        "result": "non_json",
+        "recordCount": null,
+        "note": "TxLINE returned non-JSON data for /api/scores/historical/18237038."
+      },
+      {
+        "endpoint": "/api/scores/updates/18237038",
+        "result": "non_json",
+        "recordCount": null,
+        "note": "TxLINE returned non-JSON data for /api/scores/updates/18237038."
+      },
+      {
+        "endpoint": "/api/scores/snapshot/18237038",
+        "result": "records",
+        "recordCount": 40,
+        "note": "Used as the replay score source."
+      }
+    ]
+  }
+}

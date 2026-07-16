@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "txline:probe": "tsx scripts/txline-probe.ts"
+    "txline:probe": "tsx scripts/txline-probe.ts",
+    "txline:capture-replay": "tsx scripts/txline-capture-replay.ts",
+    "replay:validate": "tsx scripts/validate-replay.ts"
   },
   "repository": {
     "type": "git",
