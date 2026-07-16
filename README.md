@@ -1,44 +1,202 @@
 # Match Horizon
 
-Match Horizon helps a user compare live sports-market probabilities with their own beliefs, identify the largest disagreement, and watch that view resolve against verified TxLINE match data.
+Match Horizon is a narrow TxLINE-powered World Cup demo for comparing a market's match-result probabilities with a user's own belief, then resolving that view through a deterministic replay of a completed fixture.
 
-## Hackathon objective
+Public demo URL: **PUBLIC_VERCEL_URL_PLACEHOLDER - replace with Daniel's Vercel URL after deployment smoke tests pass**
 
-Deliver a deployed, working World Cup demo that:
+Repository: https://github.com/DanielTabakman/match-horizon
 
-1. Loads a real fixture and market probabilities from TxLINE.
-2. Lets the user enter their own three-way match-result probabilities.
-3. Calculates and explains the strongest disagreement.
-4. Replays one completed match deterministically.
-5. Ends with a human-readable TxLINE result and verification receipt.
+## Product Flow
 
-## Core product loop
+The implemented judge flow is:
 
-**Market belief → User belief → Disagreement → Best expression → Resolution**
+1. Open the committed World Cup fixture: France vs Spain, fixture `18237038`.
+2. Review normalized TxLINE three-way match-result probabilities.
+3. Enter personal probabilities for France, Draw, and Spain. The total must be exactly `100%`.
+4. See outcome-by-outcome disagreement, calculated as `user probability - market probability`.
+5. See the strongest positive disagreement and the plain match-result expression that represents it.
+6. Start the bundled deterministic replay.
+7. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
+8. Watch the replay reach the observed final result: France `0`, Spain `2`.
+9. Inspect the result receipt with the original user belief, initial market snapshot, expression result, TxLINE data-source status, proof status, and validation status.
 
-## Initial supported scope
+The product is read-only. It does not place bets, custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
 
-- Soccer only
-- One fixture at a time
-- Full-match three-way result only: Team A, Draw, Team B
-- Read-only product
-- No wagering, custody, escrow, or user accounts
-- Historical replay must work without a live match
+## Architecture
 
-## Repository role
+```text
+Committed TxLINE fixture, odds, and score captures
+        |
+        v
+src/lib/txline normalizers and explicit schema checks
+        |
+        v
+Normalized Match Horizon domain types
+        |
+        +--> belief comparison logic and tests
+        |
+        +--> deterministic replay timeline and receipt logic
+        |
+        v
+Next.js app route and React client UI
+```
 
-This is an isolated public hackathon prototype and a potential future MSOS module. It has no runtime or code dependency on MSOS or Autobuilder during the hackathon.
+Key boundaries:
 
-## Documents
+- Raw TxLINE payload handling lives under `src/lib/txline`.
+- UI components consume normalized `Fixture`, `MarketSnapshot`, `ScoreEvent`, and `ResultReceipt` domain types.
+- The public judge flow uses committed captures and does not require a live TxLINE credential after the page loads.
+- Local TxLINE probe and capture scripts are available for maintainers, but they require private environment variables and are not part of the public browser flow.
 
-- [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md)
-- [`docs/DEMO_CONTRACT.md`](docs/DEMO_CONTRACT.md)
-- [`docs/TXLINE_DATA_CONTRACT.md`](docs/TXLINE_DATA_CONTRACT.md)
-- [`docs/BUILD_SEQUENCE.md`](docs/BUILD_SEQUENCE.md)
-- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md)
-- [`docs/DECISIONS.md`](docs/DECISIONS.md)
-- [`AGENTS.md`](AGENTS.md)
+## TxLINE Data Used
 
-## Current status
+Committed replay fixture: `test-fixtures/replay/france-spain-18237038.json`.
 
-Chartered. No implementation assumption is considered proven until the TxLINE probe captures real fixture, odds, and score payloads.
+Fixture:
+
+- Fixture id: `18237038`
+- Participants: France vs Spain
+- Start time: `2026-07-14T19:00:00.000Z`
+- Fixture metadata capture time: `2026-07-14T18:42:08.439Z`
+
+Initial market:
+
+- Source file: `test-fixtures/txline/odds-snapshot.json`
+- Capture time: `2026-07-14T18:42:08.439Z`
+- Market type normalized by Match Horizon: full-match three-way result
+- Observed TxLINE market identifier: `SuperOddsType = "1X2_PARTICIPANT_RESULT"`
+- Observed period/parameters for the supported full-match market: `MarketPeriod = null`, `MarketParameters = null`
+- Normalized probabilities:
+  - France: `0.37272` or `37.272%`
+  - Draw: `0.31837` or `31.837%`
+  - Spain: `0.30893` or `30.893%`
+- Observed raw probability total: `100.002%`, accepted within the implemented tolerance.
+
+Score and replay:
+
+- Score source endpoint: `/api/scores/snapshot/18237038`
+- Score capture time: `2026-07-16T18:02:13.363Z`
+- Score records returned: `40`
+- Committed playable score events: `32`
+- Finalization event: `game_finalised`, sequence `1026`
+- Final score read from the finalization event: France `0`, Spain `2`
+
+## Endpoints Attempted
+
+These endpoint findings are committed in the replay file:
+
+| Endpoint | Result | Records | Use |
+| --- | --- | ---: | --- |
+| `/api/fixtures/snapshot` | records | 7 | Fixture discovery and metadata source |
+| `/api/odds/snapshot/18237038` | empty | 0 | Completed-fixture live odds endpoint returned no records during replay capture |
+| `/api/scores/historical/18237038` | non-JSON | n/a | Attempted historical score source, not usable in this capture |
+| `/api/scores/updates/18237038` | non-JSON | n/a | Attempted score updates source, not usable in this capture |
+| `/api/scores/snapshot/18237038` | records | 40 | Replay score source |
+
+## Deterministic Replay
+
+The replay is bundled so the demo works when no live match is available. `npm run replay:validate` loads the committed replay without network access and checks:
+
+- fixture, market, and receipt ids agree;
+- replay events are chronological;
+- playable events do not predate the initial market snapshot;
+- a finalization event exists;
+- the finalization payload matches the top-level receipt;
+- the receipt final score matches the observed `game_finalised` score totals.
+
+Earlier score-feed records are excluded when they predate the fixed initial market snapshot. Unknown scores stay unknown until an observed score total is present; the UI must not invent `0-0`.
+
+## Fixed Historical Market Limitation
+
+Historical odds movement is not captured for this completed fixture. The replay keeps the real initial TxLINE market snapshot fixed while score and finalization events advance.
+
+This is intentional and documented. The app must not imply that it observed historical price movement after the initial capture.
+
+## Proof And On-Chain Validation Limitations
+
+The current result receipt is TxLINE-data-backed, not proof-validated and not on-chain validated.
+
+Receipt language is intentionally tiered:
+
+- `TxLINE data received: yes`
+- `Proof available: no`
+- `Proof structure checked: no`
+- `On-chain validated: no`
+
+No proof payload has been identified in the captured data. Local proof validation and on-chain validation were not attempted successfully, so the README, UI, demo, and submission materials must not describe the result as cryptographically verified or validated on-chain.
+
+## Setup
+
+Requirements:
+
+- Node.js compatible with the checked-in Next.js and TypeScript dependencies
+- npm
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the local app:
+
+```bash
+npm run dev
+```
+
+Open the local URL printed by Next.js, usually `http://localhost:3000`.
+
+## Validation Commands
+
+Run the full local gate:
+
+```bash
+npm run replay:validate
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
+
+Optional TxLINE probe and replay capture commands require private TxLINE environment variables:
+
+```bash
+cp .env.example .env.local
+npm run txline:probe
+npm run txline:capture-replay
+```
+
+Do not commit `.env`, `.env.local`, tokens, guest JWTs, request headers, or private logs.
+
+## Security And Credentials
+
+- The public judge flow uses committed sanitized data and does not need a TxLINE API token.
+- Authenticated TxLINE scripts read credentials from environment variables only.
+- `.env` and `.env.*` are ignored, except `.env.example`.
+- Credentials must remain server-side or local to capture scripts.
+- Captured fixtures are sanitized and should not contain tokens or sensitive headers.
+- Match Horizon is isolated from MSOS and Autobuilder for the hackathon. It must not import from, deploy through, configure, or modify either project.
+
+## TxLINE API Feedback
+
+What worked well:
+
+- Fixture snapshot, odds snapshot, and score snapshot categories were enough to build a complete read-only demo flow.
+- The score snapshot for fixture `18237038` included an explicit `game_finalised` event and final score totals.
+- The odds snapshot contained a usable full-match `1X2_PARTICIPANT_RESULT` record with semantic outcome names.
+
+Friction and gaps:
+
+- Historical odds movement for the completed fixture was not available from the attempted completed-fixture odds endpoint, so the replay uses a fixed initial market snapshot.
+- `/api/scores/historical/18237038` and `/api/scores/updates/18237038` returned non-JSON data during capture, which made them unusable for replay construction.
+- No proof payload was identified in the captured fixture, odds, or score data. Clear proof-discovery documentation or a stable proof endpoint would make receipt validation easier.
+- Fixture status used by the committed fixture capture was numeric and not interpreted; the normalized status remains `unknown` rather than guessing semantics.
+
+## Submission Documents
+
+- `docs/DEMO_SCRIPT.md`
+- `docs/TECHNICAL_SUBMISSION_SUMMARY.md`
+- `docs/SUBMISSION_CHECKLIST.md`
+- `docs/REPLAY_CAPTURE.md`
+- `docs/OBSERVED_TXLINE_PHASE2.md`
+- `docs/PROJECT_CHARTER.md`
