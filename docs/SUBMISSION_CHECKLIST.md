@@ -4,9 +4,7 @@ Public demo URL: `https://match-horizon.vercel.app`
 
 Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
-Prior base deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026, before the execution-routing extension.
-
-Execution-routing deployment verification: pending after merge and deployment.
+Production verification: project owner reported the merged execution-routing deployment working on the public URL at desktop and mobile width on July 16, 2026.
 
 ## Product
 
@@ -39,8 +37,8 @@ Execution-routing deployment verification: pending after merge and deployment.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
 - [x] Local desktop smoke test passes for the execution-routing branch.
 - [x] Local mobile-width smoke test passes for the execution-routing branch.
-- [ ] Execution-routing incognito browser smoke test passes on the public URL.
-- [ ] Execution-routing mobile-width smoke test passes on the public URL.
+- [x] Execution-routing browser smoke test passes on the public URL.
+- [x] Execution-routing mobile-width smoke test passes on the public URL.
 
 ## Replay Evidence
 
@@ -92,6 +90,8 @@ Execution-routing deployment verification: pending after merge and deployment.
 - [x] README distinguishes TxLINE data, proof availability, proof structure checks, and on-chain validation.
 - [x] README distinguishes real TxLINE data from simulated venue liquidity and execution.
 - [x] Demo script distinguishes real TxLINE receipt from simulated execution settlement.
+- [x] Demo script explains fair odds and minimum acceptable odds.
+- [x] Demo script explains TxLINE versus execution venues and future venue connectors.
 - [x] Technical summary distinguishes TxLINE integration from simulated routing.
 - [x] Known limitations documented.
 - [x] TxLINE feedback drafted.
@@ -101,13 +101,12 @@ Execution-routing deployment verification: pending after merge and deployment.
 
 ## Deployment
 
-- [x] Prior base public URL worked before the execution-routing extension.
-- [ ] Execution-routing build is merged and deployed to the public URL.
-- [ ] Public URL works with the execution-routing UI.
-- [ ] Default route leads to the execution-routing demo.
-- [ ] Captured replay is bundled in the deployed execution-routing build.
-- [ ] No TxLINE credential is required for the public execution-routing judge flow.
-- [ ] No development-only local paths are visible in the deployed execution-routing product.
+- [x] Execution-routing build is merged and deployed to the public URL.
+- [x] Public URL works with the execution-routing UI.
+- [x] Default route leads to the execution-routing demo.
+- [x] Captured replay is bundled in the deployed execution-routing build.
+- [x] No TxLINE credential is required for the public execution-routing judge flow.
+- [x] No development-only local paths are visible in the deployed execution-routing product.
 - [x] README and submission documents record the production URL.
 
 ## Demo Video
@@ -116,7 +115,9 @@ Execution-routing deployment verification: pending after merge and deployment.
 - [ ] States the problem in under 20 seconds.
 - [ ] Shows real TxLINE-powered market data.
 - [ ] Shows user belief entry.
+- [ ] Explains fair odds.
 - [ ] Shows disagreement result.
+- [ ] Explains simulated venues versus TxLINE.
 - [ ] Shows simulated route build.
 - [ ] Shows replay controls.
 - [ ] Shows final receipt.
@@ -142,11 +143,11 @@ Execution-routing deployment verification: pending after merge and deployment.
 
 ## Final Gate
 
-- [ ] Public execution-routing application opens in an incognito browser.
-- [ ] Public execution-routing desktop smoke test passes.
-- [ ] Public execution-routing mobile-width smoke test passes.
+- [x] Public execution-routing application opens in a browser.
+- [x] Public execution-routing desktop smoke test passes.
+- [x] Public execution-routing mobile-width smoke test passes.
 - [x] Local execution-routing deterministic replay completes and restarts correctly.
-- [ ] Public execution-routing deterministic replay completes and restarts correctly.
+- [x] Public execution-routing deterministic replay completes and restarts correctly.
 - [x] README records the final Vercel URL.
 - [x] Submission checklist records the final Vercel URL.
 - [ ] Demo video URL recorded.
