@@ -6,7 +6,7 @@ Public demo: https://match-horizon.vercel.app
 
 Repository: https://github.com/DanielTabakman/match-horizon
 
-The project owner smoke-tested the production deployment in an incognito desktop browser and at mobile width on July 16, 2026.
+Before the execution-routing extension, the project owner smoke-tested the base production deployment in an incognito desktop browser and at mobile width on July 16, 2026. This execution-routing branch has passed local desktop and mobile-width smoke tests, but it has not yet been merged, deployed to production, or smoke-tested at the public URL.
 
 ## Product Flow
 

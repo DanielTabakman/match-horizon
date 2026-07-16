@@ -4,7 +4,9 @@ Public demo URL: `https://match-horizon.vercel.app`
 
 Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
-Deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026.
+Prior base deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026, before the execution-routing extension.
+
+Execution-routing deployment verification: pending after merge and deployment.
 
 ## Product
 
@@ -35,8 +37,10 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] Execution router validation, filtering, sorting, fills, payout, and expected value are tested.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
-- [x] Incognito browser smoke test passes on the public URL.
-- [x] Mobile-width smoke test passes on the public URL.
+- [x] Local desktop smoke test passes for the execution-routing branch.
+- [x] Local mobile-width smoke test passes for the execution-routing branch.
+- [ ] Execution-routing incognito browser smoke test passes on the public URL.
+- [ ] Execution-routing mobile-width smoke test passes on the public URL.
 
 ## Replay Evidence
 
@@ -97,11 +101,13 @@ Deployment verification: project owner reported passing incognito desktop and mo
 
 ## Deployment
 
-- [x] Public URL works.
-- [x] Default route leads to the demo.
-- [x] Captured replay is bundled in the deployed build.
-- [x] No TxLINE credential is required for the public judge flow.
-- [x] No development-only local paths are visible in the product.
+- [x] Prior base public URL worked before the execution-routing extension.
+- [ ] Execution-routing build is merged and deployed to the public URL.
+- [ ] Public URL works with the execution-routing UI.
+- [ ] Default route leads to the execution-routing demo.
+- [ ] Captured replay is bundled in the deployed execution-routing build.
+- [ ] No TxLINE credential is required for the public execution-routing judge flow.
+- [ ] No development-only local paths are visible in the deployed execution-routing product.
 - [x] README and submission documents record the production URL.
 
 ## Demo Video
@@ -136,10 +142,11 @@ Deployment verification: project owner reported passing incognito desktop and mo
 
 ## Final Gate
 
-- [x] Public application opens in an incognito browser.
-- [x] Desktop smoke test passes.
-- [x] Mobile-width smoke test passes.
-- [x] Deterministic replay completes and restarts correctly.
+- [ ] Public execution-routing application opens in an incognito browser.
+- [ ] Public execution-routing desktop smoke test passes.
+- [ ] Public execution-routing mobile-width smoke test passes.
+- [x] Local execution-routing deterministic replay completes and restarts correctly.
+- [ ] Public execution-routing deterministic replay completes and restarts correctly.
 - [x] README records the final Vercel URL.
 - [x] Submission checklist records the final Vercel URL.
 - [ ] Demo video URL recorded.

@@ -77,7 +77,7 @@ npm run build
 
 `npm run replay:validate` verifies that the committed replay can load offline, is chronological, respects the market-start boundary, reaches finalization, and has a receipt score matching the observed `game_finalised` event.
 
-The project owner reported successful incognito desktop and mobile-width smoke tests against the production URL on July 16, 2026.
+This implementation branch has passed local desktop and mobile-width smoke tests. Production verification remains pending after merge and deployment.
 
 ## Limitations
 
