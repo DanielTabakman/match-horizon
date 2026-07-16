@@ -7,6 +7,7 @@ export type OutcomeDisagreement = {
   label: string;
   marketProbability: number;
   beliefProbability: number;
+  probabilityDelta: number;
   disagreementPoints: number;
 };
 
@@ -45,17 +46,18 @@ export function compareBeliefsToMarket(
       label: quote.label,
       marketProbability: quote.probability,
       beliefProbability,
+      probabilityDelta: beliefProbability - quote.probability,
       disagreementPoints: roundPercentagePoints(beliefProbability - quote.probability),
     };
   });
 
   const totalBelief = REQUIRED_OUTCOME_IDS.reduce((sum, outcomeId) => sum + belief[outcomeId], 0);
   const strongestPositive = outcomes.reduce<OutcomeDisagreement | null>((strongest, outcome) => {
-    if (outcome.disagreementPoints <= 0) {
+    if (outcome.probabilityDelta <= 0) {
       return strongest;
     }
 
-    if (!strongest || outcome.disagreementPoints > strongest.disagreementPoints) {
+    if (!strongest || outcome.probabilityDelta > strongest.probabilityDelta) {
       return outcome;
     }
 

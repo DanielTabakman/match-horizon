@@ -38,6 +38,35 @@ describe("compareBeliefsToMarket", () => {
     });
   });
 
+  it("selects the strongest positive disagreement before display rounding", () => {
+    const closeMarket: MarketSnapshot = {
+      ...market,
+      outcomes: [
+        { outcomeId: "participant_1", label: "France", probability: 0.37046 },
+        { outcomeId: "draw", label: "Draw", probability: 0.32045 },
+        { outcomeId: "participant_2", label: "Spain", probability: 0.30909 },
+      ],
+    };
+
+    const comparison = compareBeliefsToMarket(closeMarket, {
+      participant_1: 0.4,
+      draw: 0.35,
+      participant_2: 0.25,
+    });
+
+    expect(comparison.outcomes).toMatchObject([
+      { outcomeId: "participant_1", disagreementPoints: 3 },
+      { outcomeId: "draw", disagreementPoints: 3 },
+      { outcomeId: "participant_2", disagreementPoints: -5.9 },
+    ]);
+    expect(comparison.strongestPositive).toMatchObject({
+      outcomeId: "draw",
+      label: "Draw",
+      disagreementPoints: 3,
+    });
+    expect(comparison.strongestPositive?.probabilityDelta).toBeCloseTo(0.02955, 6);
+  });
+
   it("returns no strongest positive expression when the user is not above market on any outcome", () => {
     const comparison = compareBeliefsToMarket(market, {
       participant_1: 0.3,

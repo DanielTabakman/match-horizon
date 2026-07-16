@@ -26,6 +26,12 @@ const DEFAULT_BELIEF: BeliefByOutcome = {
   participant_2: 0.35,
 };
 
+const timestampFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
+
 export default function BeliefComparisonClient({ snapshot }: Props) {
   if (snapshot.status !== "ready") {
     return <StatePanel snapshot={snapshot} />;
@@ -62,12 +68,12 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
           </h1>
           <p className="muted">
             Fixture {fixture.fixtureId}
-            {fixture.startsAt ? ` - ${new Date(fixture.startsAt).toLocaleString()}` : ""}
+            {fixture.startsAt ? ` - ${formatTimestamp(fixture.startsAt)}` : ""}
           </p>
         </div>
         <div className="receipt">
           <span>TxLINE snapshot</span>
-          <strong>{new Date(market.capturedAt).toLocaleString()}</strong>
+          <strong>{formatTimestamp(market.capturedAt)}</strong>
         </div>
       </section>
 
@@ -123,12 +129,27 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
           <span>{totalIsValid ? "Calculated" : "Waiting for 100%"}</span>
         </div>
         <div className="result-table">
+          <div className="result-row result-headings">
+            <span>Outcome</span>
+            <span>Market</span>
+            <span>Your belief</span>
+            <span>Difference</span>
+          </div>
           {comparison.outcomes.map((outcome) => (
             <div className="result-row" key={outcome.outcomeId}>
-              <span>{outcome.label}</span>
-              <span>{formatPercentage(outcome.marketProbability)}</span>
-              <span>{formatPercentage(outcome.beliefProbability)}</span>
-              <strong>{totalIsValid ? formatDisagreementPoints(outcome.disagreementPoints) : "-"}</strong>
+              <span className="result-outcome">{outcome.label}</span>
+              <span>
+                <span className="result-label">Market</span>
+                {formatPercentage(outcome.marketProbability)}
+              </span>
+              <span>
+                <span className="result-label">Your belief</span>
+                {formatPercentage(outcome.beliefProbability)}
+              </span>
+              <strong>
+                <span className="result-label">Difference</span>
+                {totalIsValid ? formatDisagreementPoints(outcome.disagreementPoints) : "-"}
+              </strong>
             </div>
           ))}
         </div>
@@ -166,6 +187,10 @@ function MarketRow({ outcome }: { outcome: OutcomeQuote }) {
       <meter min="0" max="1" value={outcome.probability} aria-label={`${outcome.label} market probability`} />
     </div>
   );
+}
+
+function formatTimestamp(value: string): string {
+  return `${timestampFormatter.format(new Date(value))} UTC`;
 }
 
 function StatePanel({ snapshot }: { snapshot: Exclude<SnapshotState, { status: "ready" }> }) {

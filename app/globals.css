@@ -191,6 +191,18 @@ input {
   border-top: 0;
 }
 
+.result-headings {
+  color: #62665d;
+  font-weight: 700;
+}
+
+.result-label {
+  display: none;
+  color: #62665d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .strongest {
   display: grid;
   align-content: start;
@@ -231,5 +243,24 @@ input {
 
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .result-headings {
+    display: none;
+  }
+
+  .result-row span,
+  .result-row strong {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .result-outcome {
+    font-weight: 700;
+  }
+
+  .result-row .result-label {
+    display: inline;
   }
 }
