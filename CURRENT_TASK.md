@@ -1,6 +1,6 @@
 # Current Task
 
-**Status:** EXECUTION ROUTING DEPLOYED — PRACTICE, VIDEO, SECRET REVIEW, AND SUBMISSION PRIMARY
+**Status:** ISSUE #24 REQUIRED EDGE + FRACTIONAL KELLY PRIMARY — FINAL SUBMISSION AFTER MERGE
 
 **Completed foundations:**
 
@@ -9,76 +9,78 @@
 - [#14 — Replay UI and result receipt](https://github.com/DanielTabakman/match-horizon/pull/14) is merged.
 - [#16 — Submission documentation](https://github.com/DanielTabakman/match-horizon/pull/16) is merged.
 - [#17 — Public release records](https://github.com/DanielTabakman/match-horizon/pull/17) is merged.
-- [#20 — Simulated execution routing demo](https://github.com/DanielTabakman/match-horizon/pull/20) is merged.
-- [#4 — Historical replay](https://github.com/DanielTabakman/match-horizon/issues/4) is complete.
+- [#20 — Simulated execution routing demo](https://github.com/DanielTabakman/match-horizon/pull/20) is merged and deployed.
 - [#18 — Simulated execution routing](https://github.com/DanielTabakman/match-horizon/issues/18) is complete.
 
-**Active issue:** [#5 — Deploy and prepare the submission](https://github.com/DanielTabakman/match-horizon/issues/5)
+**Active implementation issue:** [#24 — Add required-edge and fractional Kelly sizing](https://github.com/DanielTabakman/match-horizon/issues/24)
+
+**Submission issue:** [#5 — Deploy and prepare the submission](https://github.com/DanielTabakman/match-horizon/issues/5) remains open and resumes immediately after Issue #24 is merged, deployed, and smoke-tested.
 
 **Submission deadline:** July 19, 2026 at 23:59 UTC / 7:59 PM America/Toronto.
 
 **Public demo:** https://match-horizon.vercel.app
 
-The project owner confirmed on July 16, 2026 that the production execution-routing flow appears to work after PR #20 deployed. The public app shows the Execution Agent, builds the simulated route, completes deterministic replay, and displays the separate TxLINE result and simulated settlement receipts.
+## Authorized product flow
 
-## Final product flow
+**TxLINE market → Personal belief → Fair odds → Required edge → Calculated minimum odds → Fractional Kelly target stake → Simulated liquidity routing → Deterministic replay → Result and simulated settlement receipts**
 
-**TxLINE market → Personal belief → Disagreement → Selected outcome → Simulated liquidity routing → Deterministic replay → Result and simulated settlement receipts**
+Issue #24 is an explicitly authorized final product slice. It overrides the previous no-new-scope submission instruction only for the narrow work defined in that issue.
 
-## Truth boundary
+## Primary implementation result
 
-**Real committed TxLINE data:**
+1. Add pure deterministic pricing and sizing functions under `src/lib/execution/`.
+2. Convert user probability and required expected edge into calculated minimum decimal odds.
+3. Calculate Quarter, Half, and Full Kelly references using the calculated minimum odds.
+4. Default Spain demo values must produce:
+   - user probability `50%`;
+   - fair odds `2.00`;
+   - required edge `10%`;
+   - calculated minimum odds `2.20`;
+   - strategy bankroll `$120,000`;
+   - full Kelly `8.33%`;
+   - applied Half Kelly `4.17%`;
+   - suggested stake `$5,000`.
+5. Preserve manual stake sizing as a working alternative.
+6. Route the selected target stake through the existing deterministic simulated liquidity book.
+7. Preserve the existing default fills at `3.50`, `3.42`, and `3.30`, weighted odds `3.37`, and gross payout `$16,840`.
+8. Freeze pricing, sizing, route, and settlement context when replay starts.
+9. Keep the TxLINE result receipt separate from simulated execution settlement.
+10. Update README, demo script, technical summary, checklist, and production evidence accurately.
 
-- fixture and participants;
-- initial three-way market probabilities;
-- score events;
-- `game_finalised` event;
-- France 0–Spain 2 final result.
+## Truth and safety boundary
 
-**Simulated demo layer:**
+- Simulation only; no wager submitted.
+- Venue quotes and liquidity remain simulated.
+- Kelly is an educational sizing reference based entirely on the user's probability estimate.
+- Kelly does not validate the belief, guarantee returns, or constitute bankroll advice.
+- No real venue integration, wallet, custody, account, database, or smart contract.
+- No portfolio Kelly, correlation model, or simultaneous-position optimization.
+- No MSOS or Autobuilder dependency.
 
-- external venue identities;
-- venue odds and available liquidity;
-- order routing and submission;
-- execution and profit/loss receipts.
+## Required checks
 
-The routing calculations are real, deterministic, and tested. The UI must continue to state **Simulation only — no wager submitted** and must not imply live sportsbook integrations or partnerships.
+- `npm run replay:validate`
+- `npm test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- Local desktop and mobile-width smoke tests
+- Production desktop and mobile-width smoke tests after merge/deployment
 
-## Immediate priority
+## Coordination
 
-1. Practice the live stage presentation using `docs/DEMO_SCRIPT.md` as source material, adapted around the belief-to-execution product story.
-2. Record and upload the under-five-minute submission video.
-3. Record the final video URL in the README or submission checklist.
-4. Complete the repository-history secret scan or equivalent final review.
-5. Complete every required submission-form field.
-6. Submit before the deadline.
-7. Close Issue #5 only after submission is confirmed.
+- Use worktree `C:\Users\USER\match-horizon-edge-kelly`.
+- Use branch `codex/issue-24-edge-kelly`.
+- Open a draft PR after the pure pricing/Kelly module and tests form the first coherent slice.
+- Draft PR #23 overlaps README and demo-script wording. Do not merge it before Issue #24. Reconcile or supersede it after the product implementation is stable.
 
-## Final production smoke flow
+## After Issue #24
 
-Before recording or presenting, confirm:
-
-1. the public URL opens without authentication;
-2. France vs Spain and the captured TxLINE probabilities appear;
-3. a valid belief can make Spain the strongest disagreement;
-4. the Execution Agent states `Simulation only - no wager submitted`;
-5. `$5,000` at minimum odds `3.30` builds the expected multi-venue route;
-6. weighted-average odds display `3.37` and gross payout displays `$16,840`;
-7. replay freezes the route and reaches France 0–Spain 2;
-8. the TxLINE receipt retains the exact proof and validation limits;
-9. the simulated settlement remains visibly separate;
-10. desktop and mobile layouts remain usable.
-
-## Hard stops
-
-- Do not add more product scope before submission.
-- No actual wagering or order submission.
-- No real sportsbook or exchange names unless a future integration is explicitly authorized and verified.
-- No implied venue partnerships.
-- No wallet, custody, escrow, account, database, smart-contract, AMM, or order-book implementation before submission.
-- No new live TxLINE dependency in the public judge flow.
-- Do not claim proof validation, cryptographic verification, or on-chain validation.
-- No broad redesign or unrelated refactor.
-- No MSOS or Autobuilder dependency during the hackathon.
+1. Confirm production deployment and public smoke tests.
+2. Freeze product scope.
+3. Practice and record the under-five-minute demo.
+4. Complete the repository-history secret review.
+5. Complete and submit the hackathon form.
+6. Close Issue #5 only after submission is confirmed.
 
 Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and push durable branch/PR state early.
