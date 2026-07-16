@@ -16,6 +16,8 @@ import {
   settleExpression,
 } from "../src/lib/replay/controller";
 import type { MatchReplay } from "../src/lib/replay/types";
+import { DEMO_LIQUIDITY_BOOK } from "../src/lib/execution/demoLiquidity";
+import { buildExecutionRoute, type ExecutionRoute } from "../src/lib/execution/router";
 
 export type SnapshotState =
   | { status: "loading" }
@@ -56,6 +58,8 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
   const comparison = useMemo(() => compareBeliefsToMarket(market, belief), [belief, market]);
   const totalPercent = comparison.totalBelief * 100;
   const totalIsValid = comparison.isValid;
+  const strongestPositive = totalIsValid ? comparison.strongestPositive : null;
+  const [executionRoute, setExecutionRoute] = useState<ExecutionRoute | null>(null);
 
   function updateBelief(outcomeId: OutcomeQuote["outcomeId"], nextPercent: string) {
     const parsed = Number(nextPercent);
@@ -187,8 +191,186 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
         </div>
       </section>
 
-      <ReplayPanel market={market} belief={belief} canStart={totalIsValid && comparison.strongestPositive !== null} />
+      <ExecutionAgentPanel
+        strongestPositive={strongestPositive}
+        route={executionRoute}
+        onRouteChange={setExecutionRoute}
+      />
+
+      <ReplayPanel
+        market={market}
+        belief={belief}
+        canStart={totalIsValid && strongestPositive !== null && executionRoute !== null}
+        executionRoute={executionRoute}
+      />
     </main>
+  );
+}
+
+function ExecutionAgentPanel({
+  strongestPositive,
+  route,
+  onRouteChange,
+}: {
+  strongestPositive: ReturnType<typeof compareBeliefsToMarket>["strongestPositive"];
+  route: ExecutionRoute | null;
+  onRouteChange: (route: ExecutionRoute | null) => void;
+}) {
+  const [requestedStake, setRequestedStake] = useState("5000");
+  const [minimumDecimalOdds, setMinimumDecimalOdds] = useState("3.30");
+  const outcomeId = strongestPositive?.outcomeId ?? null;
+  const userProbability = strongestPositive?.beliefProbability ?? null;
+  const routeKey = `${outcomeId ?? "none"}:${userProbability ?? "none"}:${requestedStake}:${minimumDecimalOdds}`;
+  const outcomeQuotes = outcomeId
+    ? DEMO_LIQUIDITY_BOOK.filter((quote) => quote.outcomeId === outcomeId).sort(
+        (left, right) =>
+          right.decimalOdds - left.decimalOdds ||
+          left.venueId.localeCompare(right.venueId) ||
+          left.quoteId.localeCompare(right.quoteId),
+      )
+    : [];
+  const parsedStake = Number(requestedStake);
+  const parsedMinimumOdds = Number(minimumDecimalOdds);
+  const canBuild =
+    strongestPositive !== null &&
+    Number.isFinite(parsedStake) &&
+    parsedStake > 0 &&
+    Number.isFinite(parsedMinimumOdds) &&
+    parsedMinimumOdds > 1;
+
+  useEffect(() => {
+    onRouteChange(null);
+  }, [routeKey, onRouteChange]);
+
+  function buildRoute() {
+    if (!strongestPositive || !canBuild) {
+      return;
+    }
+
+    onRouteChange(
+      buildExecutionRoute(
+        {
+          outcomeId: strongestPositive.outcomeId,
+          requestedStake: parsedStake,
+          minimumDecimalOdds: parsedMinimumOdds,
+          userProbability: strongestPositive.beliefProbability,
+        },
+        DEMO_LIQUIDITY_BOOK,
+      ),
+    );
+  }
+
+  return (
+    <section className="panel execution-panel" aria-label="Execution Agent">
+      <div className="panel-heading">
+        <div>
+          <h2>Execution Agent</h2>
+          <span>Simulated liquidity routing</span>
+        </div>
+        <strong className="simulation-badge">Simulation only - no wager submitted</strong>
+      </div>
+
+      {strongestPositive ? (
+        <>
+          <div className="execution-summary">
+            <Metric label="Selected outcome" value={`${strongestPositive.label} match result`} />
+            <Metric label="Your probability" value={formatPercentage(strongestPositive.beliefProbability)} />
+            <Metric label="Your fair decimal odds" value={formatDecimalOdds(1 / strongestPositive.beliefProbability)} />
+            <Metric label="TxLINE probability" value={formatPercentage(strongestPositive.marketProbability)} />
+            <Metric
+              label="Probability disagreement"
+              value={formatDisagreementPoints(strongestPositive.disagreementPoints)}
+            />
+          </div>
+
+          <div className="execution-controls">
+            <label>
+              <span>Requested stake</span>
+              <input
+                aria-label="Requested stake"
+                inputMode="decimal"
+                min="1"
+                step="100"
+                type="number"
+                value={requestedStake}
+                onChange={(event) => setRequestedStake(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Minimum decimal odds</span>
+              <input
+                aria-label="Minimum decimal odds"
+                inputMode="decimal"
+                min="1.01"
+                step="0.01"
+                type="number"
+                value={minimumDecimalOdds}
+                onChange={(event) => setMinimumDecimalOdds(event.target.value)}
+              />
+            </label>
+            <button type="button" onClick={buildRoute} disabled={!canBuild}>
+              Build simulated route
+            </button>
+          </div>
+
+          <div className="execution-routing-grid">
+            <div className="execution-table">
+              <div className="panel-heading">
+                <h3>Available simulated liquidity</h3>
+                <span>{outcomeQuotes.length} quotes</span>
+              </div>
+              {outcomeQuotes.map((quote) => (
+                <div className="execution-row" key={quote.quoteId}>
+                  <span>{quote.venueLabel}</span>
+                  <strong>{formatDecimalOdds(quote.decimalOdds)}</strong>
+                  <span>{formatCurrency(quote.availableStake)}</span>
+                  <span className={quote.decimalOdds >= parsedMinimumOdds ? "valid" : "invalid"}>
+                    {quote.decimalOdds >= parsedMinimumOdds ? "Eligible" : "Below minimum"}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="execution-table">
+              <div className="panel-heading">
+                <h3>Actual routed fills</h3>
+                <span>{route ? `${route.fills.length} fills` : "Not built"}</span>
+              </div>
+              {route && route.fills.length > 0 ? (
+                route.fills.map((fill) => (
+                  <div className="execution-row" key={fill.quoteId}>
+                    <span>{fill.venueLabel}</span>
+                    <strong>{formatDecimalOdds(fill.decimalOdds)}</strong>
+                    <span>{formatCurrency(fill.filledStake)}</span>
+                    <span>{formatCurrency(fill.estimatedGrossPayout)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="muted">Build a route to allocate stake across eligible simulated quotes.</p>
+              )}
+            </div>
+          </div>
+
+          {route ? (
+            <div className="execution-totals">
+              <Metric label="Requested" value={formatCurrency(route.requestedStake)} />
+              <Metric label="Filled" value={formatCurrency(route.filledStake)} />
+              <Metric label="Unfilled" value={formatCurrency(route.unfilledStake)} />
+              <Metric
+                label="Weighted-average odds"
+                value={route.weightedAverageOdds === null ? "-" : formatDecimalOdds(route.weightedAverageOdds)}
+              />
+              <Metric label="Estimated gross payout" value={formatCurrency(route.estimatedGrossPayout)} />
+              <Metric label="User-belief expected value" value={formatSignedCurrency(route.expectedValue)} />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="validation" role="alert">
+          Enter a valid 100% belief with at least one positive disagreement to build a simulated route.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -196,10 +378,12 @@ function ReplayPanel({
   market,
   belief,
   canStart,
+  executionRoute,
 }: {
   market: MarketSnapshot;
   belief: BeliefByOutcome;
   canStart: boolean;
+  executionRoute: ExecutionRoute | null;
 }) {
   const [snapshot, setSnapshot] = useState<EvaluationSnapshot | null>(null);
   const [cursor, setCursor] = useState(0);
@@ -233,7 +417,7 @@ function ReplayPanel({
   }, [isPlaying, speed]);
 
   function startReplay() {
-    const frozenSnapshot = freezeEvaluationSnapshot(market, belief, new Date().toISOString());
+    const frozenSnapshot = freezeEvaluationSnapshot(market, belief, new Date().toISOString(), executionRoute);
     if (!frozenSnapshot) {
       return;
     }
@@ -302,6 +486,7 @@ function ReplayPanel({
         {!canStart && !snapshot ? (
           <p className="validation" role="alert">
             Enter a valid 100% belief with at least one positive disagreement to start the replay.
+            Build a simulated execution route before replay so the plan can be frozen.
           </p>
         ) : null}
 
@@ -318,6 +503,15 @@ function ReplayPanel({
               Your original belief was {formatPercentage(snapshot.belief[snapshot.selectedExpression])}; TxLINE was{" "}
               {formatPercentage(snapshot.strongestPositive.marketProbability)}.
             </p>
+            {snapshot.executionRoute ? (
+              <p>
+                Frozen simulated route filled {formatCurrency(snapshot.executionRoute.filledStake)} at{" "}
+                {snapshot.executionRoute.weightedAverageOdds === null
+                  ? "-"
+                  : formatDecimalOdds(snapshot.executionRoute.weightedAverageOdds)}{" "}
+                weighted-average odds.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -370,34 +564,86 @@ function ResultReceiptPanel({
   }
 
   return (
-    <div className="result-receipt">
+    <>
+      <div className="result-receipt">
+        <div className="panel-heading">
+          <h3>Result receipt</h3>
+          <span>{settlement.occurred ? "Expression occurred" : "Expression did not occur"}</span>
+        </div>
+        <dl>
+          <ReceiptRow
+            label="Fixture and final score"
+            value={`${REPLAY.fixture.participant1} ${receipt.finalScore1}-${receipt.finalScore2} ${REPLAY.fixture.participant2}`}
+          />
+          <ReceiptRow label="Original user probabilities" value={formatOutcomeSet(snapshot.belief, snapshot.market)} />
+          <ReceiptRow
+            label="Initial TxLINE market probabilities"
+            value={formatOutcomeSet(
+              {
+                participant_1: snapshot.market.outcomes[0].probability,
+                draw: snapshot.market.outcomes[1].probability,
+                participant_2: snapshot.market.outcomes[2].probability,
+              },
+              snapshot.market,
+            )}
+          />
+          <ReceiptRow label="Selected expression and outcome" value={`${settlement.label} match result: ${settlement.occurred ? "occurred" : "did not occur"}`} />
+          <ReceiptRow label="TxLINE data received" value="yes" />
+          <ReceiptRow label="Proof available" value="no" />
+          <ReceiptRow label="Proof structure checked" value="no" />
+          <ReceiptRow label="On-chain validated" value="no" />
+        </dl>
+      </div>
+
+      {snapshot.executionRoute ? (
+        <SimulatedSettlementPanel
+          route={snapshot.executionRoute}
+          selectedOutcome={`${settlement.label} match result`}
+          occurred={settlement.occurred}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function SimulatedSettlementPanel({
+  route,
+  selectedOutcome,
+  occurred,
+}: {
+  route: ExecutionRoute;
+  selectedOutcome: string;
+  occurred: boolean;
+}) {
+  const simulatedGrossReturn = occurred ? route.estimatedGrossPayout : 0;
+  const simulatedProfitLoss = simulatedGrossReturn - route.filledStake;
+
+  return (
+    <div className="simulated-settlement">
       <div className="panel-heading">
-        <h3>Result receipt</h3>
-        <span>{settlement.occurred ? "Expression occurred" : "Expression did not occur"}</span>
+        <h3>Simulated execution settlement</h3>
+        <span>Simulation only - no wager submitted</span>
       </div>
       <dl>
+        <ReceiptRow label="Selected outcome" value={selectedOutcome} />
+        <ReceiptRow label="Filled stake" value={formatCurrency(route.filledStake)} />
         <ReceiptRow
-          label="Fixture and final score"
-          value={`${REPLAY.fixture.participant1} ${receipt.finalScore1}-${receipt.finalScore2} ${REPLAY.fixture.participant2}`}
+          label="Weighted-average odds"
+          value={route.weightedAverageOdds === null ? "-" : formatDecimalOdds(route.weightedAverageOdds)}
         />
-        <ReceiptRow label="Original user probabilities" value={formatOutcomeSet(snapshot.belief, snapshot.market)} />
-        <ReceiptRow
-          label="Initial TxLINE market probabilities"
-          value={formatOutcomeSet(
-            {
-              participant_1: snapshot.market.outcomes[0].probability,
-              draw: snapshot.market.outcomes[1].probability,
-              participant_2: snapshot.market.outcomes[2].probability,
-            },
-            snapshot.market,
-          )}
-        />
-        <ReceiptRow label="Selected expression and outcome" value={`${settlement.label} match result: ${settlement.occurred ? "occurred" : "did not occur"}`} />
-        <ReceiptRow label="TxLINE data received" value="yes" />
-        <ReceiptRow label="Proof available" value="no" />
-        <ReceiptRow label="Proof structure checked" value="no" />
-        <ReceiptRow label="On-chain validated" value="no" />
+        <ReceiptRow label="Expression occurred" value={occurred ? "yes" : "no"} />
+        <ReceiptRow label="Simulated gross return" value={formatCurrency(simulatedGrossReturn)} />
+        <ReceiptRow label="Simulated profit or loss" value={formatSignedCurrency(simulatedProfitLoss)} />
       </dl>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -441,6 +687,23 @@ function formatOutcomeSet(values: BeliefByOutcome, market: MarketSnapshot): stri
   return market.outcomes
     .map((outcome) => `${outcome.label} ${formatPercentage(values[outcome.outcomeId])}`)
     .join(" | ");
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatSignedCurrency(value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatCurrency(value)}`;
+}
+
+function formatDecimalOdds(value: number): string {
+  return value.toFixed(2);
 }
 
 function StatePanel({ snapshot }: { snapshot: Exclude<SnapshotState, { status: "ready" }> }) {

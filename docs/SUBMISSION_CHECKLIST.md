@@ -4,7 +4,9 @@ Public demo URL: `https://match-horizon.vercel.app`
 
 Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
-Deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026.
+Prior base deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026, before the execution-routing extension.
+
+Execution-routing deployment verification: pending after merge and deployment.
 
 ## Product
 
@@ -15,8 +17,14 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] Disagreement calculation is tested.
 - [x] Strongest disagreement is explained.
 - [x] Expression recommendation is accurate and modest.
+- [x] Simulated Execution Agent panel is implemented.
+- [x] Generic simulated liquidity covers all three outcomes.
+- [x] Default Spain route fills `$5,000` at minimum decimal odds `3.30`.
+- [x] Simulated route shows filled stake, unfilled stake, weighted-average odds, payout, and expected value.
+- [x] UI states `Simulation only - no wager submitted`.
 - [x] Historical replay reaches final result.
 - [x] Result receipt is based on real TxLINE score data.
+- [x] Simulated execution settlement is labeled separately from the TxLINE result receipt.
 - [x] No live match is required for the core demo.
 
 ## Reliability
@@ -26,10 +34,13 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] Typecheck command exists: `npm run typecheck`.
 - [x] Lint command exists: `npm run lint`.
 - [x] Build command exists: `npm run build`.
+- [x] Execution router validation, filtering, sorting, fills, payout, and expected value are tested.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
-- [x] Incognito browser smoke test passes on the public URL.
-- [x] Mobile-width smoke test passes on the public URL.
+- [x] Local desktop smoke test passes for the execution-routing branch.
+- [x] Local mobile-width smoke test passes for the execution-routing branch.
+- [ ] Execution-routing incognito browser smoke test passes on the public URL.
+- [ ] Execution-routing mobile-width smoke test passes on the public URL.
 
 ## Replay Evidence
 
@@ -50,6 +61,7 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] `/api/scores/snapshot/18237038` documented as returning `40` records and serving as replay score source.
 - [x] No invented historical odds movement.
 - [x] No invented score totals, finalization, proof payloads, or verification results.
+- [x] Simulated venue liquidity is documented as separate from real TxLINE data.
 
 ## Isolation
 
@@ -78,6 +90,9 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [x] README explains local setup and validation commands.
 - [x] README explains deterministic replay mode.
 - [x] README distinguishes TxLINE data, proof availability, proof structure checks, and on-chain validation.
+- [x] README distinguishes real TxLINE data from simulated venue liquidity and execution.
+- [x] Demo script distinguishes real TxLINE receipt from simulated execution settlement.
+- [x] Technical summary distinguishes TxLINE integration from simulated routing.
 - [x] Known limitations documented.
 - [x] TxLINE feedback drafted.
 - [x] Under-five-minute demo script created.
@@ -86,11 +101,13 @@ Deployment verification: project owner reported passing incognito desktop and mo
 
 ## Deployment
 
-- [x] Public URL works.
-- [x] Default route leads to the demo.
-- [x] Captured replay is bundled in the deployed build.
-- [x] No TxLINE credential is required for the public judge flow.
-- [x] No development-only local paths are visible in the product.
+- [x] Prior base public URL worked before the execution-routing extension.
+- [ ] Execution-routing build is merged and deployed to the public URL.
+- [ ] Public URL works with the execution-routing UI.
+- [ ] Default route leads to the execution-routing demo.
+- [ ] Captured replay is bundled in the deployed execution-routing build.
+- [ ] No TxLINE credential is required for the public execution-routing judge flow.
+- [ ] No development-only local paths are visible in the deployed execution-routing product.
 - [x] README and submission documents record the production URL.
 
 ## Demo Video
@@ -100,8 +117,10 @@ Deployment verification: project owner reported passing incognito desktop and mo
 - [ ] Shows real TxLINE-powered market data.
 - [ ] Shows user belief entry.
 - [ ] Shows disagreement result.
+- [ ] Shows simulated route build.
 - [ ] Shows replay controls.
 - [ ] Shows final receipt.
+- [ ] Shows separate simulated settlement.
 - [ ] Explains architecture briefly.
 - [ ] Mentions deterministic replay because matches may not be live.
 - [ ] States fixed historical market limitation.
@@ -123,10 +142,11 @@ Deployment verification: project owner reported passing incognito desktop and mo
 
 ## Final Gate
 
-- [x] Public application opens in an incognito browser.
-- [x] Desktop smoke test passes.
-- [x] Mobile-width smoke test passes.
-- [x] Deterministic replay completes and restarts correctly.
+- [ ] Public execution-routing application opens in an incognito browser.
+- [ ] Public execution-routing desktop smoke test passes.
+- [ ] Public execution-routing mobile-width smoke test passes.
+- [x] Local execution-routing deterministic replay completes and restarts correctly.
+- [ ] Public execution-routing deterministic replay completes and restarts correctly.
 - [x] README records the final Vercel URL.
 - [x] Submission checklist records the final Vercel URL.
 - [ ] Demo video URL recorded.
