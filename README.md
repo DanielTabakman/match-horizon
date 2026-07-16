@@ -2,9 +2,11 @@
 
 Match Horizon is a narrow TxLINE-powered World Cup demo for comparing a market's match-result probabilities with a user's own belief, then resolving that view through a deterministic replay of a completed fixture.
 
-Public demo URL: **PUBLIC_VERCEL_URL_PLACEHOLDER - replace with Daniel's Vercel URL after deployment smoke tests pass**
+Public demo: https://match-horizon.vercel.app
 
 Repository: https://github.com/DanielTabakman/match-horizon
+
+The project owner smoke-tested the production deployment in an incognito desktop browser and at mobile width on July 16, 2026.
 
 ## Product Flow
 
@@ -45,7 +47,7 @@ Key boundaries:
 
 - Raw TxLINE payload handling lives under `src/lib/txline`.
 - UI components consume normalized `Fixture`, `MarketSnapshot`, `ScoreEvent`, and `ResultReceipt` domain types.
-- The public judge flow uses committed captures and does not require a live TxLINE credential after the page loads.
+- The deployed judge flow uses committed captures and makes no runtime TxLINE API request.
 - Local TxLINE probe and capture scripts are available for maintainers, but they require private environment variables and are not part of the public browser flow.
 
 ## TxLINE Data Used
@@ -123,7 +125,7 @@ Receipt language is intentionally tiered:
 - `Proof structure checked: no`
 - `On-chain validated: no`
 
-No proof payload has been identified in the captured data. Local proof validation and on-chain validation were not attempted successfully, so the README, UI, demo, and submission materials must not describe the result as cryptographically verified or validated on-chain.
+No proof payload has been identified in the captured data. Local proof validation and on-chain validation were not executed, so the README, UI, demo, and submission materials must not describe the result as cryptographically verified or validated on-chain.
 
 ## Setup
 
@@ -170,10 +172,9 @@ Do not commit `.env`, `.env.local`, tokens, guest JWTs, request headers, or priv
 
 ## Security And Credentials
 
-- The public judge flow uses committed sanitized data and does not need a TxLINE API token.
-- Authenticated TxLINE scripts read credentials from environment variables only.
+- The deployed judge flow uses committed sanitized data and has no TxLINE API credential.
+- Authenticated TxLINE scripts read credentials from local environment variables only.
 - `.env` and `.env.*` are ignored, except `.env.example`.
-- Credentials must remain server-side or local to capture scripts.
 - Captured fixtures are sanitized and should not contain tokens or sensitive headers.
 - Match Horizon is isolated from MSOS and Autobuilder for the hackathon. It must not import from, deploy through, configure, or modify either project.
 

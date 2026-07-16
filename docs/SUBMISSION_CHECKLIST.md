@@ -1,8 +1,10 @@
 # Submission Checklist
 
-Public demo URL: **PUBLIC_VERCEL_URL_PLACEHOLDER - replace after deployment smoke tests pass**
+Public demo URL: `https://match-horizon.vercel.app`
 
 Repository URL: `https://github.com/DanielTabakman/match-horizon`
+
+Deployment verification: project owner reported passing incognito desktop and mobile-width smoke tests on July 16, 2026.
 
 ## Product
 
@@ -25,9 +27,9 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 - [x] Lint command exists: `npm run lint`.
 - [x] Build command exists: `npm run build`.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
-- [x] Current branch checks run and passing for this documentation PR.
-- [ ] Incognito browser smoke test passes on the public URL.
-- [ ] Mobile-width smoke test passes on the public URL.
+- [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
+- [x] Incognito browser smoke test passes on the public URL.
+- [x] Mobile-width smoke test passes on the public URL.
 
 ## Replay Evidence
 
@@ -53,13 +55,13 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
 - [x] No imports or dependencies from MSOS.
 - [x] No imports or dependencies from Autobuilder.
-- [x] No MSOS or Autobuilder files were modified by this documentation workstream.
+- [x] No MSOS or Autobuilder files were modified by the submission workstream.
 - [x] Autobuilder was not used.
-- [ ] Separate public Vercel deployment URL recorded after Daniel provides it.
+- [x] Separate public Vercel deployment URL recorded.
 
 ## Security
 
-- [x] No credentials committed in this documentation workstream.
+- [x] No credentials committed in the documentation or release-record workstreams.
 - [x] Public judge flow does not require a TxLINE API token.
 - [x] `.env*` ignored except `.env.example`.
 - [x] README warns not to commit tokens, guest JWTs, headers, or private logs.
@@ -84,12 +86,12 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
 ## Deployment
 
-- [ ] Public URL works.
-- [ ] Default route leads to the demo.
-- [ ] Captured replay bundled in deployed build.
-- [ ] No TxLINE credential required for public judge flow.
-- [ ] No development-only paths visible in the product.
-- [ ] No broken submission-document links.
+- [x] Public URL works.
+- [x] Default route leads to the demo.
+- [x] Captured replay is bundled in the deployed build.
+- [x] No TxLINE credential is required for the public judge flow.
+- [x] No development-only local paths are visible in the product.
+- [x] README and submission documents record the production URL.
 
 ## Demo Video
 
@@ -109,23 +111,25 @@ Repository URL: `https://github.com/DanielTabakman/match-horizon`
 ## Submission Form
 
 - [ ] Demo video link.
-- [ ] Public repository link.
-- [ ] Working application link.
-- [ ] Short product description.
-- [ ] Technical overview.
-- [ ] TxLINE endpoints or data categories used.
-- [ ] Business or future-use explanation.
-- [ ] TxLINE positive feedback.
-- [ ] TxLINE friction or bug feedback.
-- [ ] Team and eligibility information.
+- [ ] Public repository link entered.
+- [ ] Working application link entered.
+- [ ] Short product description entered.
+- [ ] Technical overview entered.
+- [ ] TxLINE endpoints or data categories entered.
+- [ ] Business or future-use explanation entered.
+- [ ] TxLINE positive feedback entered.
+- [ ] TxLINE friction or bug feedback entered.
+- [ ] Team and eligibility information entered.
 
 ## Final Gate
 
-- [ ] Public application opens in an incognito browser.
-- [ ] Desktop smoke test passes.
-- [ ] Mobile-width smoke test passes.
-- [ ] Deterministic replay completes and restarts correctly.
-- [ ] README public URL placeholder replaced with the final Vercel URL.
-- [ ] Submission checklist public URL placeholder replaced with the final Vercel URL.
+- [x] Public application opens in an incognito browser.
+- [x] Desktop smoke test passes.
+- [x] Mobile-width smoke test passes.
+- [x] Deterministic replay completes and restarts correctly.
+- [x] README records the final Vercel URL.
+- [x] Submission checklist records the final Vercel URL.
 - [ ] Demo video URL recorded.
-- [ ] Every verification claim is supported by implemented evidence.
+- [ ] Repository-history secret review completed.
+- [ ] Final submission form sent before the deadline.
+- [x] Current verification claims are supported by implemented or owner-reported evidence.
