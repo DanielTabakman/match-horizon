@@ -1,89 +1,77 @@
 # Current Task
 
-**Status:** ISSUE #2 MERGED — ISSUE #3 PRIMARY / ISSUE #4 CAPTURE PARALLEL
+**Status:** ISSUE #3 MERGED — ISSUE #4 CAPTURE CORRECTIONS PRIMARY
 
-**Primary issue:** [#3 — Build the market-belief comparison vertical slice](https://github.com/DanielTabakman/match-horizon/issues/3)
+**Completed foundation:** [#10 — Build Issue #3 belief comparison slice](https://github.com/DanielTabakman/match-horizon/pull/10) is merged.
 
-**Approved parallel issue:** [#4 — Capture and play one deterministic historical match replay](https://github.com/DanielTabakman/match-horizon/issues/4), limited initially to capture and validation work.
+**Active issue:** [#4 — Capture and play one deterministic historical match replay](https://github.com/DanielTabakman/match-horizon/issues/4)
 
-**Dependency state:** PR #7 is merged. Both workstreams must begin from or update onto current `main`.
+**Active pull request:** [#11 — Add deterministic replay capture foundation](https://github.com/DanielTabakman/match-horizon/pull/11)
 
-## Primary workstream — Issue #3
+**Dependency state:** The core belief-comparison page is now stable on `main`. Replay UI integration remains blocked until PR #11 passes the capture-and-validation gate.
 
-Issue #3 owns:
+## Primary workstream — finish PR #11
 
-- the core page;
-- fixture and market probability display;
-- the user belief editor;
-- 100% probability validation;
-- deterministic disagreement logic and tests;
-- strongest-disagreement presentation;
-- the plain-language match-result expression;
-- loading, empty, unsupported-market, and error states;
-- core UI styling.
+Preserve the real France vs Spain fixture `18237038`, the fixed real initial TxLINE market snapshot, the observed score amendment sequence, and the final `game_finalised` result France 0–Spain 2.
 
-### First durable milestone
+Correct only the outstanding data-integrity findings:
 
-Push a branch and open a draft PR as soon as a user can load the committed real fixture and market snapshot, enter a valid belief, and see the calculated disagreements. Do not wait for visual polish.
+1. Missing nested score totals remain `null`; never convert missing TxLINE fields into zero.
+2. `locallyValidated` remains false unless an actual proof payload is structurally validated. Offline replay consistency is a separate claim.
+3. The playable replay begins no earlier than `initialMarket.capturedAt`.
+4. The synthetic finalization event payload must exactly match the top-level result receipt.
 
-### Acceptance gate
+Required checks before final review:
 
-A user can complete the full belief-comparison flow locally using the real normalized TxLINE fixture and market snapshot. Typecheck, lint, tests, and build pass.
+- `npm run replay:validate`
+- `npm test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
 
-## Parallel workstream — Issue #4 capture and validation only
+## Capture acceptance gate
 
-Issue #4 initially owns:
+One versioned replay file:
 
-- completed-fixture discovery and capture scripts;
-- sanitized replay fixtures;
-- real final-score evidence;
-- historical score-event capture;
-- historical odds capture where available;
-- replay-domain types;
-- deterministic timeline utilities;
-- replay validation commands;
-- tests and replay documentation.
+- loads without network access;
+- starts from a valid real market state;
+- has stable chronological ordering;
+- preserves unknown score values as unknown;
+- reaches an explicit real final result;
+- distinguishes TxLINE data receipt, replay consistency, proof availability, local proof validation, and on-chain validation accurately.
 
-Issue #4 must not edit or redesign the core page while Issue #3 owns it. Replay UI integration begins only after the Issue #3 page structure is stable and ownership is explicitly reassigned.
+Historical odds movement remains optional. When unavailable, keep the real initial market snapshot fixed and document the limitation.
 
-### First durable milestone
+## Next workstream — replay UI integration
 
-Push a branch and open a draft PR as soon as useful capture scripts, sanitized real data, validators, or concrete endpoint findings exist. Do not wait for the full replay UI.
+Do not begin until PR #11 is reviewed and merged.
 
-### Acceptance gate for the capture foundation
+Once assigned, replay UI may extend the merged Issue #3 page with:
 
-One versioned replay file loads without network access, has stable chronological ordering, and reaches an explicit final result using only real captured TxLINE data. If historical odds are unavailable, keep the real initial captured odds snapshot fixed and document the limitation.
+- play, pause, restart, and accelerated playback;
+- score updates based on the committed replay;
+- a concise event timeline;
+- recalculation of the user's original disagreement;
+- finalized result state;
+- a concise result receipt.
 
-## Stalled-session recovery
-
-Every existing or new Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md`.
-
-Before continuing a previously stalled session, require it to report:
-
-1. current branch;
-2. current commit SHA;
-3. `git status -sb`;
-4. files changed;
-5. commands run and results;
-6. the exact blocker;
-7. whether useful work can be committed and pushed now;
-8. the smallest next action.
-
-Make one recovery attempt. Preserve useful branches and commits, but replace conversations that cannot expose concrete repository state or a narrow evidenced blocker.
+The replay UI worker owns the integration paths only after explicit assignment. Avoid competing writers on the core page.
 
 ## Hard stops
 
 - Do not use, modify, configure, deploy through, or depend on MSOS or Autobuilder.
 - Do not share environment files, credentials, workspaces, or local-path dependencies with other repositories.
 - Do not invent TxLINE records, score totals, finalization, proof status, or historical odds movement.
+- Do not claim local proof validation or on-chain validation unless actually executed.
 - Do not add wagering, wallets, databases, AI analysis, additional sports, or additional market types.
-- Do not allow Issue #3 and Issue #4 workers to edit the same files concurrently.
-- Do not begin broad deployment or submission polish before the Issue #3 vertical slice is stable enough to preserve.
+- Do not begin broad deployment or submission polish before the replay foundation is credible.
 
 ## Immediate coordination priority
 
-1. Obtain a GitHub-visible draft PR for Issue #3.
-2. Obtain a separate GitHub-visible draft PR for Issue #4 capture and validation.
-3. Review Issue #3 first.
-4. Review the replay data for real final-score evidence and deterministic offline behavior.
-5. Assign replay UI integration only after both foundations are credible.
+1. Correct and re-review PR #11.
+2. Merge the replay capture foundation.
+3. Assign replay UI and result receipt integration.
+4. Deploy the stable combined slice.
+5. Finish README, demo script, video, and submission package.
+
+Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and push durable branch/PR state early.
