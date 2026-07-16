@@ -21,6 +21,7 @@ export type TxlineScoreRecord = {
   Ts?: unknown;
   Seq?: unknown;
   Action?: unknown;
+  Score?: unknown;
 };
 
 export type TxlineSampleEnvelope<T> = {
