@@ -1,34 +1,33 @@
 # Current Task
 
-**Status:** ISSUE #1 GATE PASSED — FINISH PR ONLY  
-**Active issue:** [#1 — Scaffold the app and prove TxLINE connectivity](https://github.com/DanielTabakman/match-horizon/issues/1)  
-**Active pull request:** [#6 — scaffold app and add TxLINE probe](https://github.com/DanielTabakman/match-horizon/pull/6)  
-**Active branch:** `agent/issue-1-txline-probe`  
-**Scope:** Finish and merge Issue #1. Do not begin Issue #2 on this branch.
+**Status:** ISSUE #2 GATE PASSED - DRAFT PR OPEN
+**Active issue:** [#2 - Phase 2: Normalize the observed TxLINE fixture, odds, and score data](https://github.com/DanielTabakman/match-horizon/issues/2)
+**Active pull request:** [#7 - Issue 2: normalize observed TxLINE captures](https://github.com/DanielTabakman/match-horizon/pull/7)
+**Active branch:** `codex/issue-2-txline-normalizers`
+**Scope:** Implement only Phase 2 from updated `main`.
 
-## Verified live result
+## Inputs
 
-On July 14, 2026, `npm run txline:probe` completed successfully against TxLINE devnet and reported:
+- Committed sanitized TxLINE captures under `test-fixtures/txline/`
+- Issue #2 acceptance gate
+- `docs/TXLINE_DATA_CONTRACT.md`
+- `docs/BUILD_SEQUENCE.md`
 
-- authentication succeeded;
-- fixture `18237038` selected;
-- 7 fixture records;
-- 29 odds records;
-- 9 score records from the score snapshot;
-- sanitized fixtures, odds, and score samples written under `test-fixtures/txline`.
+## Required output
 
-The captured samples are committed to the active branch.
+1. Raw TxLINE schemas isolated under `src/lib/txline`.
+2. Fixture normalizer.
+3. Full-match three-way result odds normalizer.
+4. Score-event normalizer.
+5. Normalized domain types.
+6. Deterministic fixture-based tests using the committed sanitized samples.
+7. Explicit unsupported or ambiguous data errors.
+8. Short observed-data document for market identifiers, periods, outcome names, probability scale, and participant mapping.
 
-## Remaining work
+## Hard stops
 
-1. Resolve the documentation-only merge conflict with `main`.
-2. Rerun typecheck, lint, tests, and production build after the merge.
-3. Update PR #6 with the successful live-probe evidence.
-4. Make PR #6 ready for review and merge it.
-5. Close Issue #1 after merge.
-
-## Stop condition
-
-Stop after Issue #1 is merged. Issue #2 must begin from updated `main` on a new branch.
-
-Do not use MSOS or Autobuilder. Autobuilder requires Daniel's explicit prior approval.
+- Do not begin Issue #3.
+- Do not add market types beyond full-match three-way result.
+- Do not infer undocumented TxLINE meanings.
+- Do not let raw TxLINE fields leak into UI components.
+- Do not use, read from, modify, or depend on MSOS or Autobuilder.
