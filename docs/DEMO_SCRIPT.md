@@ -2,7 +2,7 @@
 
 Target length: 3:30 to 4:30.
 
-Public demo URL: **PUBLIC_VERCEL_URL_PLACEHOLDER - replace after deployment smoke tests pass**
+Public demo URL: https://match-horizon.vercel.app
 
 ## 0:00-0:20 - Problem
 
@@ -58,10 +58,9 @@ Show:
 
 Let the replay reach the final result: France `0`, Spain `2`.
 
-Show the receipt:
+When the observed `game_finalised` event is reached, show the receipt:
 
 - Final score.
-- Finalization status.
 - Original user probabilities.
 - Initial TxLINE market probabilities.
 - Whether the selected expression occurred.
@@ -74,7 +73,7 @@ Show the receipt:
 
 ## 3:20-4:10 - Architecture And Limits
 
-"The architecture keeps raw TxLINE schemas inside `src/lib/txline`, normalizes them into domain types, runs deterministic belief and replay logic, and renders the UI from those normalized objects. The public demo uses committed sanitized captures and does not require browser credentials."
+"The architecture keeps raw TxLINE schemas inside `src/lib/txline`, normalizes them into domain types, runs deterministic belief and replay logic, and renders the UI from those normalized objects. The public demo uses committed sanitized captures and makes no runtime TxLINE API request."
 
 Mention limitations:
 
@@ -91,5 +90,5 @@ Mention limitations:
 
 Show:
 
-- Public demo URL placeholder or final URL.
-- Repository URL: `https://github.com/DanielTabakman/match-horizon`.
+- Public demo: `https://match-horizon.vercel.app`
+- Repository: `https://github.com/DanielTabakman/match-horizon`
