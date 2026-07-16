@@ -1,14 +1,14 @@
 # Under-Five-Minute Demo Script
 
-Target length: 3:30 to 4:30.
+Target length: 4:00 to 4:45.
 
 Public demo URL: https://match-horizon.vercel.app
 
 ## 0:00-0:20 - Problem
 
-"Sports odds are hard to reason about directly. Match Horizon turns TxLINE market data into probabilities, lets a fan enter their own view, identifies the clearest disagreement, builds a simulated execution route, and resolves that view against a captured match result."
+"A bettor may know what they think will happen, but they still have to translate that belief into a price, compare it with the market, search fragmented liquidity, and split the order. Match Horizon turns a belief into an execution plan and follows it through settlement."
 
-## 0:20-0:50 - Fixture And Market
+## 0:20-0:50 - Fixture And TxLINE Market Reference
 
 Open the app.
 
@@ -21,11 +21,11 @@ Call out:
   - Draw `31.837%`
   - Spain `30.893%`
 
-"This is a real captured TxLINE fixture and market snapshot, normalized into a simple three-outcome domain model."
+"This is a real captured TxLINE fixture and market snapshot, normalized into a simple three-outcome model. TxLINE gives Match Horizon the sports-market reference and later the match result."
 
-## 0:50-1:30 - User Belief And Disagreement
+## 0:50-1:35 - User Belief, Disagreement, And Fair Odds
 
-Enter a valid belief that totals `100%`, for example:
+Enter a valid belief that totals `100%`:
 
 - France: `25`
 - Draw: `25`
@@ -35,29 +35,38 @@ Call out:
 
 - The form requires exactly `100%`.
 - The disagreement is `user probability - market probability`.
-- Spain should become the strongest positive disagreement in this example.
+- Spain becomes the strongest positive disagreement.
+- A `50%` belief produces fair decimal odds of `2.00` because fair odds are `1 / probability`.
+- Fair odds are the user's theoretical break-even price if their probability estimate is correct.
+- TxLINE's Spain probability of `30.893%` corresponds to market-implied decimal odds of about `3.24`.
 
-"The app is not placing a wager. It is naming the plain match-result expression that most directly represents the user's view."
+"I think Spain has a fifty-percent chance, so my fair odds are two-to-one in decimal format: 2.00. The TxLINE market reference is only about thirty-one percent, so Match Horizon identifies Spain as the clearest disagreement."
 
-## 1:30-2:25 - Simulated Execution Route
+## 1:35-2:35 - Simulated Execution Route
 
 Use the default Spain example.
+
+Explain the layers before building the route:
+
+"TxLINE is not the execution venue. It supplies normalized market and result data. The simulated venues here stand in for places where an order could actually be filled: sportsbooks, exchanges, on-chain markets, or private market makers. A real version would connect to those venues, normalize their executable prices and available size, and feed them into this same router."
 
 Call out:
 
 - The panel says `Simulation only - no wager submitted`.
 - Requested stake defaults to `$5,000`.
 - Minimum decimal odds defaults to `3.30`.
+- Minimum odds are different from fair odds: `2.00` is the user's break-even estimate, while `3.30` is the worst execution price the user will accept.
 - The simulated liquidity uses generic venue names only.
 - Build the route.
-- The fills should be `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
-- Filled stake should be `$5,000`.
-- Weighted-average odds should display as `3.37`.
-- Estimated gross payout should be `$16,840`.
+- The quote at `3.24` is rejected because it is below the minimum.
+- The fills are `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
+- Filled stake is `$5,000`.
+- Weighted-average odds display as `3.37`.
+- Estimated gross payout is `$16,840`.
 
-"This is not TxLINE venue data and not a live order. It is a deterministic routing calculation over committed simulated liquidity so the belief-to-execution story can be judged safely."
+"The venue quotes and order submission are simulated, but the routing algorithm and calculations are real. It filters unacceptable prices, takes the best price first, and splits the order until the requested amount is filled."
 
-## 2:25-3:20 - Deterministic Replay
+## 2:35-3:20 - Deterministic Replay
 
 Start the replay.
 
@@ -76,7 +85,7 @@ Show:
 
 Let the replay reach the final result: France `0`, Spain `2`.
 
-When the observed `game_finalised` event is reached, show the receipt:
+When the observed `game_finalised` event is reached, show the TxLINE result receipt:
 
 - Final score.
 - Original user probabilities.
@@ -96,25 +105,25 @@ Then show the separately labeled `Simulated execution settlement`:
 - Simulated gross return.
 - Simulated profit or loss.
 
-"The result receipt is backed by captured TxLINE score data, including a `game_finalised` event. The simulated settlement is separate and uses only the frozen simulated route. The result is not claimed as proof-validated or on-chain validated."
+"The result receipt is backed by captured TxLINE score data, including a `game_finalised` event. The simulated settlement is separate and uses only the frozen route. I am not claiming that proof or on-chain validation was completed."
 
-## 4:05-4:25 - Architecture And Limits
+## 4:05-4:35 - Architecture, Future Integration, And Limits
 
-"The architecture keeps raw TxLINE schemas inside `src/lib/txline`, normalizes them into domain types, runs deterministic belief, simulated routing, and replay logic, and renders the UI from those normalized objects. The public demo uses committed sanitized captures and makes no runtime TxLINE API request."
+"There are three layers. TxLINE provides the normalized market reference and outcome data. Match Horizon converts belief into fair odds, identifies the disagreement, and routes the order. Venue connectors would provide real executable prices and liquidity from exchanges, sportsbooks, on-chain markets, or market makers."
 
 Mention limitations:
 
 - One fixture: France vs Spain.
 - One market type: full-match three-way result.
 - Fixed initial market during replay.
-- Simulated venue liquidity, not real venue data.
+- Venue liquidity and order transmission are simulated.
 - No proof payload identified yet.
 - No on-chain validation executed.
 - No wagering, wallet, custody, account, or database scope.
 
-## 4:25-4:30 - Close
+## 4:35-4:45 - Close
 
-"The complete loop is market belief, personal belief, disagreement, expression, simulated route, replay, receipt, and simulated settlement. The repository is public, the deployment is separate from MSOS and Autobuilder, and the demo is designed to work even when no live match is available."
+"The complete loop is belief in, execution out: TxLINE market reference, personal belief, fair odds, routed liquidity, deterministic result, and a clear receipt. The router works today over simulated liquidity, and the next step is replacing each simulated venue with a real connector."
 
 Show:
 
