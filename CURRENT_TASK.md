@@ -1,27 +1,57 @@
 # Current Task
 
-**Status:** ISSUE #3 MERGED — ISSUE #4 CAPTURE CORRECTIONS PRIMARY
+**Status:** ISSUE #3 MERGED — ISSUE #4 REPLAY FOUNDATION MERGED — REPLAY UI PRIMARY
 
-**Completed foundation:** [#10 — Build Issue #3 belief comparison slice](https://github.com/DanielTabakman/match-horizon/pull/10) is merged.
+**Completed foundations:**
+
+- [#10 — Build Issue #3 belief comparison slice](https://github.com/DanielTabakman/match-horizon/pull/10) is merged.
+- [#11 — Add deterministic replay capture foundation](https://github.com/DanielTabakman/match-horizon/pull/11) is merged.
 
 **Active issue:** [#4 — Capture and play one deterministic historical match replay](https://github.com/DanielTabakman/match-horizon/issues/4)
 
-**Active pull request:** [#11 — Add deterministic replay capture foundation](https://github.com/DanielTabakman/match-horizon/pull/11)
+**Dependency state:** The belief-comparison page and deterministic offline replay are both stable on `main`. One integration worker now owns replay UI and result-receipt integration.
 
-**Dependency state:** The core belief-comparison page is now stable on `main`. Replay UI integration remains blocked until PR #11 passes the capture-and-validation gate.
+## Primary workstream — replay UI integration
 
-## Primary workstream — finish PR #11
+Begin from current `main` in a clean worktree and extend the merged Issue #3 page using only the committed replay `test-fixtures/replay/france-spain-18237038.json`.
 
-Preserve the real France vs Spain fixture `18237038`, the fixed real initial TxLINE market snapshot, the observed score amendment sequence, and the final `game_finalised` result France 0–Spain 2.
+Implement the smallest coherent end-to-end flow:
 
-Correct only the outstanding data-integrity findings:
+1. The user enters a valid three-way belief totaling 100%.
+2. Starting the replay freezes an evaluation snapshot containing the user's probabilities, initial market, strongest positive disagreement, and selected match-result expression.
+3. Replay controls provide play, pause, restart, and at least one accelerated speed.
+4. Playback is deterministic and uses the committed event ordering; restarting produces the same state sequence.
+5. Score display changes only when a replay event contains observed score totals. Never initialize, reset, or fill an unknown score with an invented zero.
+6. Show a concise recent-event timeline. Do not expose raw TxLINE payload structures in the UI.
+7. Historical odds remain fixed at the real initial market snapshot. State plainly that no historical odds movement was available; do not animate or imply market movement.
+8. On finalization, settle the selected three-way expression deterministically from the real final score and show whether it occurred.
+9. Show a concise result receipt with:
+   - fixture and final score;
+   - original user probabilities;
+   - initial TxLINE market probabilities;
+   - selected expression and outcome;
+   - `TxLINE data received`;
+   - `Proof available: no`;
+   - `Proof structure checked: no`;
+   - `On-chain validated: no`.
 
-1. Missing nested score totals remain `null`; never convert missing TxLINE fields into zero.
-2. `locallyValidated` remains false unless an actual proof payload is structurally validated. Offline replay consistency is a separate claim.
-3. The playable replay begins no earlier than `initialMarket.capturedAt`.
-4. The synthetic finalization event payload must exactly match the top-level result receipt.
+## Engineering requirements
 
-Required checks before final review:
+- Keep replay/controller and expression-settlement logic pure where practical and add unit tests.
+- Preserve the existing normalized domain boundary; UI must not consume raw TxLINE schemas.
+- Preserve the Issue #3 belief editor, disagreement table, error states, accessibility, deterministic UTC formatting, and mobile behavior.
+- Use a separate component or clearly bounded integration structure rather than turning the page into an untestable monolith.
+- Open a draft PR once play/pause/restart drives the committed replay and the score/event state is visible. Do not wait for final styling.
+
+## Acceptance gate
+
+A judge can locally complete this exact flow without network access:
+
+**Market belief → Personal belief → Disagreement → Expression → Deterministic replay → Final result receipt**
+
+The replay restarts deterministically, preserves unknown scores as unknown, reaches the real France 0–Spain 2 final result, settles the frozen expression correctly, and uses precise verification language.
+
+Required checks:
 
 - `npm run replay:validate`
 - `npm test`
@@ -29,49 +59,18 @@ Required checks before final review:
 - `npm run lint`
 - `npm run build`
 
-## Capture acceptance gate
-
-One versioned replay file:
-
-- loads without network access;
-- starts from a valid real market state;
-- has stable chronological ordering;
-- preserves unknown score values as unknown;
-- reaches an explicit real final result;
-- distinguishes TxLINE data receipt, replay consistency, proof availability, local proof validation, and on-chain validation accurately.
-
-Historical odds movement remains optional. When unavailable, keep the real initial market snapshot fixed and document the limitation.
-
-## Next workstream — replay UI integration
-
-Do not begin until PR #11 is reviewed and merged.
-
-Once assigned, replay UI may extend the merged Issue #3 page with:
-
-- play, pause, restart, and accelerated playback;
-- score updates based on the committed replay;
-- a concise event timeline;
-- recalculation of the user's original disagreement;
-- finalized result state;
-- a concise result receipt.
-
-The replay UI worker owns the integration paths only after explicit assignment. Avoid competing writers on the core page.
-
 ## Hard stops
 
+- Do not capture new data unless a demonstrated defect makes the committed replay unusable.
+- Do not add historical odds movement; it was not observed.
+- Do not add live-network dependency to the judge flow.
+- Do not claim proof validation or on-chain validation.
+- Do not add wagering, wallets, databases, accounts, AI analysis, extra sports, or extra market types.
 - Do not use, modify, configure, deploy through, or depend on MSOS or Autobuilder.
-- Do not share environment files, credentials, workspaces, or local-path dependencies with other repositories.
-- Do not invent TxLINE records, score totals, finalization, proof status, or historical odds movement.
-- Do not claim local proof validation or on-chain validation unless actually executed.
-- Do not add wagering, wallets, databases, AI analysis, additional sports, or additional market types.
-- Do not begin broad deployment or submission polish before the replay foundation is credible.
+- Do not begin broad visual redesign, architecture refactoring, or submission polish inside this task.
 
-## Immediate coordination priority
+## Next workstream after this gate
 
-1. Correct and re-review PR #11.
-2. Merge the replay capture foundation.
-3. Assign replay UI and result receipt integration.
-4. Deploy the stable combined slice.
-5. Finish README, demo script, video, and submission package.
+Deployment and Issue #5 submission packaging: public app, receipt polish, README, demo script, video, and final submission.
 
 Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and push durable branch/PR state early.
