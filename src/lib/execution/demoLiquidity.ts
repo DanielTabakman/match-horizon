@@ -78,7 +78,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
     venueId: "venue-delta",
     venueLabel: "Simulated Venue D",
     outcomeId: "participant_2",
-    decimalOdds: 3.24,
+    decimalOdds: 2.1,
     availableStake: 5000,
   },
 ];
