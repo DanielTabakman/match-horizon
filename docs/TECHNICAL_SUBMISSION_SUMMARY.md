@@ -51,12 +51,13 @@ Default Spain example:
 - Full Kelly: `8.33%`
 - Applied Kelly: `4.17%`
 - Suggested stake: `$5,000`
+- Rejected quote: Venue D at `2.10`, below the `2.20` minimum
 - Routed fills: `$500` at `3.50`, `$2,000` at `3.42`, `$2,500` at `3.30`
 - Filled stake: `$5,000`
 - Weighted-average odds: `3.368`, displayed as `3.37`
 - Estimated gross payout: `$16,840`
 
-The `3.24` Spain quote is above the calculated minimum and eligible, but the default target stake is fully filled at better prices first. Kelly is an educational simulation reference based on the user's probability estimate, not a recommendation, guarantee, or validation of that belief. Manual stake sizing remains available.
+The deliberately poor Venue D quote makes the minimum-price policy visible: it is excluded before routing, while the full target is filled across the three better venues. Kelly is an educational simulation reference based on the user's probability estimate, not a recommendation, guarantee, or validation of that belief. Manual stake sizing remains available.
 
 The UI prominently states `Simulation only - no wager submitted`. No external betting API, real venue name, account, wallet, custody, AMM, order book, or smart contract is added.
 
@@ -86,7 +87,7 @@ npm run build
 
 `npm run replay:validate` verifies that the committed replay can load offline, is chronological, respects the market-start boundary, reaches finalization, and has a receipt score matching the observed `game_finalised` event.
 
-This implementation branch has passed local desktop and mobile-width smoke tests. Production verification remains pending after merge and deployment.
+The required-edge and Kelly build passed local and production verification before this final demo-liquidity clarification. The quote change preserves the tested route totals and requires the same full validation gate before deployment.
 
 ## Limitations
 
