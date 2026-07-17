@@ -4,9 +4,11 @@ Public demo URL: `https://match-horizon.vercel.app`
 
 Repository URL: `https://github.com/DanielTabakman/match-horizon`
 
-Production verification: project owner reported the merged execution-routing deployment working on the public URL at desktop and mobile width on July 16, 2026.
+Production verification: project owner reported the required-edge and fractional Kelly build deployed and verified on the public URL on July 16, 2026.
 
-Issue #24 production verification remains pending until the required-edge and Kelly branch is merged and deployed.
+Verified source commit: `00bd3816ffd2c3e83e37a9abb091203030bf2cfb`.
+
+Verified production deployment: `https://match-horizon-gfhcjoojg-msos-sportsbeting.vercel.app`, aliased to `https://match-horizon.vercel.app`.
 
 ## Product
 
@@ -50,10 +52,10 @@ Issue #24 production verification remains pending until the required-edge and Ke
 - [x] Required-edge fair odds, minimum odds, expected return, Kelly multipliers, default Spain policy, route invalidation key, and frozen replay policy are tested.
 - [x] Empty, unsupported-market, and error states are implemented for the committed snapshot loader.
 - [x] Local replay validation, tests, typecheck, lint, and build passed before deployment.
-- [x] Local desktop smoke test passes for the execution-routing branch.
-- [x] Local mobile-width smoke test passes for the execution-routing branch.
-- [x] Execution-routing browser smoke test passes on the public URL.
-- [x] Execution-routing mobile-width smoke test passes on the public URL.
+- [x] Local desktop smoke test passes for the required-edge and Kelly build.
+- [x] Local mobile-width smoke test passes for the required-edge and Kelly build.
+- [x] Public production page contains required edge, bankroll, Kelly selector, sizing toggle, `2.20`, `8.33%`, `4.17%`, and `$5,000`.
+- [x] Production domain is assigned to the successful local-source deployment.
 
 ## Replay Evidence
 
@@ -118,12 +120,13 @@ Issue #24 production verification remains pending until the required-edge and Ke
 
 ## Deployment
 
-- [x] Execution-routing build is merged and deployed to the public URL.
-- [x] Public URL works with the execution-routing UI.
-- [x] Default route leads to the execution-routing demo.
-- [x] Captured replay is bundled in the deployed execution-routing build.
-- [x] No TxLINE credential is required for the public execution-routing judge flow.
-- [x] No development-only local paths are visible in the deployed execution-routing product.
+- [x] Required-edge and Kelly build is merged.
+- [x] Required-edge and Kelly build is deployed to the public URL.
+- [x] Public URL exposes the required-edge and Kelly controls.
+- [x] Default public values show `2.20`, `8.33%`, `4.17%`, and `$5,000`.
+- [x] Captured replay is bundled in the deployed build.
+- [x] No TxLINE credential is required for the public judge flow.
+- [x] No development-only local paths are visible in the deployed product.
 - [x] README and submission documents record the production URL.
 
 ## Demo Video
@@ -134,6 +137,8 @@ Issue #24 production verification remains pending until the required-edge and Ke
 - [ ] Shows user belief entry.
 - [ ] Explains fair odds.
 - [ ] Shows disagreement result.
+- [ ] Explains required edge and calculated minimum odds.
+- [ ] Shows Half Kelly sizing and the manual alternative.
 - [ ] Explains simulated venues versus TxLINE.
 - [ ] Shows simulated route build.
 - [ ] Shows replay controls.
@@ -160,11 +165,10 @@ Issue #24 production verification remains pending until the required-edge and Ke
 
 ## Final Gate
 
-- [x] Public execution-routing application opens in a browser.
-- [x] Public execution-routing desktop smoke test passes.
-- [x] Public execution-routing mobile-width smoke test passes.
-- [x] Local execution-routing deterministic replay completes and restarts correctly.
-- [x] Public execution-routing deterministic replay completes and restarts correctly.
+- [x] Public required-edge and Kelly application opens in a browser.
+- [x] Public required-edge and Kelly values are present on the production domain.
+- [x] Local desktop and mobile smoke tests passed.
+- [x] Local deterministic replay completes and restarts correctly.
 - [x] README records the final Vercel URL.
 - [x] Submission checklist records the final Vercel URL.
 - [ ] Demo video URL recorded.
