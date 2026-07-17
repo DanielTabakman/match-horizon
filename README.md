@@ -6,7 +6,7 @@ Public demo: https://match-horizon.vercel.app
 
 Repository: https://github.com/DanielTabakman/match-horizon
 
-Before the required-edge and Kelly extension, the project owner smoke-tested the merged execution-routing deployment in an incognito desktop browser and at mobile width on July 16, 2026. This Issue #24 branch has passed local desktop and mobile-width smoke tests, but it has not yet been merged, deployed to production, or smoke-tested at the public URL.
+The required-edge and fractional Kelly build was merged, deployed, and verified on the public production URL on July 16, 2026. The default flow displays the calculated minimum odds, fractional Kelly stake, routed fills, deterministic replay, and separate TxLINE and simulated settlement receipts at desktop and mobile width.
 
 ## Product Flow
 
@@ -138,6 +138,7 @@ Default Spain route:
 - Full Kelly: `8.33%`
 - Applied Kelly: `4.17%`
 - Suggested stake: `$5,000`
+- Venue D quote at `2.10` is rejected because it is below the `2.20` minimum
 - `$500` at decimal odds `3.50`
 - `$2,000` at decimal odds `3.42`
 - `$2,500` at decimal odds `3.30`
@@ -145,7 +146,7 @@ Default Spain route:
 - Weighted-average odds: `3.368`, displayed as `3.37`
 - Estimated gross payout: `$16,840`
 
-The `3.24` Spain quote is above the calculated `2.20` minimum and remains eligible, but the default `$5,000` target stake is fully filled at better prices first. Manual sizing remains available by disabling Kelly sizing.
+The deliberately poor Venue D price makes the execution policy visible: it is excluded before routing, while the full `$5,000` target is filled across the three better venues. Manual sizing remains available by disabling Kelly sizing.
 
 When replay starts, the current pricing policy, sizing policy, simulated route, frozen user belief, and expression are frozen together. Later input edits do not rewrite that frozen plan or the simulated settlement.
 
