@@ -1,6 +1,6 @@
 # Current Task
 
-**Status:** ISSUE #24 REQUIRED EDGE + FRACTIONAL KELLY PRIMARY — FINAL SUBMISSION AFTER MERGE
+**Status:** PRODUCT COMPLETE AND DEPLOYED — REHEARSAL, VIDEO, SECRET REVIEW, AND SUBMISSION PRIMARY
 
 **Completed foundations:**
 
@@ -9,78 +9,97 @@
 - [#14 — Replay UI and result receipt](https://github.com/DanielTabakman/match-horizon/pull/14) is merged.
 - [#16 — Submission documentation](https://github.com/DanielTabakman/match-horizon/pull/16) is merged.
 - [#17 — Public release records](https://github.com/DanielTabakman/match-horizon/pull/17) is merged.
-- [#20 — Simulated execution routing demo](https://github.com/DanielTabakman/match-horizon/pull/20) is merged and deployed.
+- [#20 — Simulated execution routing demo](https://github.com/DanielTabakman/match-horizon/pull/20) is merged.
+- [#26 — Required-edge and fractional Kelly sizing](https://github.com/DanielTabakman/match-horizon/pull/26) is merged.
 - [#18 — Simulated execution routing](https://github.com/DanielTabakman/match-horizon/issues/18) is complete.
+- [#24 — Required-edge and fractional Kelly sizing](https://github.com/DanielTabakman/match-horizon/issues/24) is complete.
 
-**Active implementation issue:** [#24 — Add required-edge and fractional Kelly sizing](https://github.com/DanielTabakman/match-horizon/issues/24)
-
-**Submission issue:** [#5 — Deploy and prepare the submission](https://github.com/DanielTabakman/match-horizon/issues/5) remains open and resumes immediately after Issue #24 is merged, deployed, and smoke-tested.
+**Active issue:** [#5 — Deploy and prepare the submission](https://github.com/DanielTabakman/match-horizon/issues/5)
 
 **Submission deadline:** July 19, 2026 at 23:59 UTC / 7:59 PM America/Toronto.
 
 **Public demo:** https://match-horizon.vercel.app
 
-## Authorized product flow
+## Verified production state
+
+On July 16, 2026, the project owner deployed source commit `00bd3816ffd2c3e83e37a9abb091203030bf2cfb` directly from the clean `match-horizon-edge-kelly` worktree to the existing Vercel production project after GitHub automatic deployments failed.
+
+Verified production deployment:
+
+- deployment URL: `https://match-horizon-gfhcjoojg-msos-sportsbeting.vercel.app`;
+- production alias: `https://match-horizon.vercel.app`;
+- Vercel build state: Ready;
+- production page contains `Required edge (%)`, `Strategy bankroll`, `Kelly fraction`, and `Use Kelly sizing`;
+- default values include minimum odds `2.20`, full Kelly `8.33%`, applied Half Kelly `4.17%`, and suggested stake `$5,000`.
+
+## Final product flow
 
 **TxLINE market → Personal belief → Fair odds → Required edge → Calculated minimum odds → Fractional Kelly target stake → Simulated liquidity routing → Deterministic replay → Result and simulated settlement receipts**
 
-Issue #24 is an explicitly authorized final product slice. It overrides the previous no-new-scope submission instruction only for the narrow work defined in that issue.
+Default demo values:
 
-## Primary implementation result
-
-1. Add pure deterministic pricing and sizing functions under `src/lib/execution/`.
-2. Convert user probability and required expected edge into calculated minimum decimal odds.
-3. Calculate Quarter, Half, and Full Kelly references using the calculated minimum odds.
-4. Default Spain demo values must produce:
-   - user probability `50%`;
-   - fair odds `2.00`;
-   - required edge `10%`;
-   - calculated minimum odds `2.20`;
-   - strategy bankroll `$120,000`;
-   - full Kelly `8.33%`;
-   - applied Half Kelly `4.17%`;
-   - suggested stake `$5,000`.
-5. Preserve manual stake sizing as a working alternative.
-6. Route the selected target stake through the existing deterministic simulated liquidity book.
-7. Preserve the existing default fills at `3.50`, `3.42`, and `3.30`, weighted odds `3.37`, and gross payout `$16,840`.
-8. Freeze pricing, sizing, route, and settlement context when replay starts.
-9. Keep the TxLINE result receipt separate from simulated execution settlement.
-10. Update README, demo script, technical summary, checklist, and production evidence accurately.
+- Spain belief `50%`;
+- fair odds `2.00`;
+- required edge `10%`;
+- calculated minimum odds `2.20`;
+- strategy bankroll `$120,000`;
+- full Kelly `8.33%`;
+- applied Half Kelly `4.17%`;
+- suggested stake `$5,000`;
+- fills at `3.50`, `3.42`, and `3.30`;
+- weighted odds `3.37`;
+- gross payout `$16,840`.
 
 ## Truth and safety boundary
 
 - Simulation only; no wager submitted.
-- Venue quotes and liquidity remain simulated.
+- TxLINE supplies the captured market reference and match result.
+- Venue names, executable quotes, liquidity, order submission, and settlement are simulated.
 - Kelly is an educational sizing reference based entirely on the user's probability estimate.
 - Kelly does not validate the belief, guarantee returns, or constitute bankroll advice.
 - No real venue integration, wallet, custody, account, database, or smart contract.
-- No portfolio Kelly, correlation model, or simultaneous-position optimization.
+- No proof payload was identified and no on-chain validation was executed.
 - No MSOS or Autobuilder dependency.
 
-## Required checks
+## Immediate priority
 
-- `npm run replay:validate`
-- `npm test`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- Local desktop and mobile-width smoke tests
-- Production desktop and mobile-width smoke tests after merge/deployment
+1. Do one timed rehearsal using `docs/DEMO_SCRIPT.md`.
+2. Fix only presentation-blocking problems; product scope is frozen.
+3. Record and upload the under-five-minute demo video.
+4. Record the video URL in the README or submission checklist.
+5. Complete the public repository-history secret scan or equivalent review.
+6. Fill every submission-form field.
+7. Submit before the deadline.
+8. Close Issue #5 only after submission is confirmed.
 
-## Coordination
+## Final production smoke flow
 
-- Use worktree `C:\Users\USER\match-horizon-edge-kelly`.
-- Use branch `codex/issue-24-edge-kelly`.
-- Open a draft PR after the pure pricing/Kelly module and tests form the first coherent slice.
-- Draft PR #23 overlaps README and demo-script wording. Do not merge it before Issue #24. Reconcile or supersede it after the product implementation is stable.
+Before recording, confirm:
 
-## After Issue #24
+1. the public URL opens without authentication;
+2. France vs Spain and captured TxLINE probabilities appear;
+3. Spain is the strongest disagreement at a `25 / 25 / 50` belief;
+4. fair odds display `2.00`;
+5. required edge displays `10%` and minimum odds display `2.20`;
+6. Half Kelly displays `8.33%` full, `4.17%` applied, and `$5,000` suggested stake;
+7. the default route fills at `3.50`, `3.42`, and `3.30` with weighted odds `3.37` and payout `$16,840`;
+8. manual sizing appears when `Use Kelly sizing` is disabled;
+9. replay freezes the pricing, sizing, and route policy and reaches France `0`, Spain `2`;
+10. the TxLINE receipt retains exact proof and validation limits;
+11. the simulated settlement remains visibly separate;
+12. desktop and mobile layouts remain usable.
 
-1. Confirm production deployment and public smoke tests.
-2. Freeze product scope.
-3. Practice and record the under-five-minute demo.
-4. Complete the repository-history secret review.
-5. Complete and submit the hackathon form.
-6. Close Issue #5 only after submission is confirmed.
+## Hard stops
 
-Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and push durable branch/PR state early.
+- No more product features before submission.
+- No actual wagering or order submission.
+- No real sportsbook or exchange names unless an integration is explicitly verified.
+- No implied venue partnerships.
+- No wallet, custody, escrow, account, database, smart-contract, AMM, or order-book implementation.
+- No portfolio Kelly, correlation model, or simultaneous-position optimization.
+- No new live TxLINE dependency in the public judge flow.
+- Do not claim proof validation, cryptographic verification, or on-chain validation.
+- No broad redesign or unrelated refactor.
+- No MSOS or Autobuilder dependency during the hackathon.
+
+Every Codex session must follow `docs/EXECUTION_RECOVERY_PROTOCOL.md` and preserve unrelated worktrees.
