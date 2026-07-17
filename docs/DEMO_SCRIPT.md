@@ -63,13 +63,13 @@ Call out:
 - Manual stake sizing remains available by disabling `Use Kelly sizing`.
 - The simulated liquidity uses generic venue names only.
 - Build the route.
-- The quote at `3.24` is above the `2.20` minimum and eligible, but the default target is fully filled at better prices first.
+- Venue D offers `2.10`, below the calculated `2.20` minimum, so the router rejects it.
 - The fills are `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
 - Filled stake is `$5,000`.
 - Weighted-average odds display as `3.37`.
 - Estimated gross payout is `$16,840`.
 
-"The venue quotes and order submission are simulated, but the pricing and routing calculations are real. Match Horizon turns my fifty-percent belief into 2.00 fair odds, adds my ten-percent required edge to get a 2.20 minimum, sizes the target with Half Kelly, then takes the best eligible prices first until the target is filled."
+"The venue quotes and order submission are simulated, but the pricing and routing calculations are real. Match Horizon turns my fifty-percent belief into 2.00 fair odds, adds my ten-percent required edge to get a 2.20 minimum, rejects a venue offering only 2.10, then takes the best eligible prices first until the Half Kelly target is filled."
 
 ## 2:35-3:20 - Deterministic Replay
 

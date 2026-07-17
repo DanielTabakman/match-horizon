@@ -24,10 +24,11 @@ describe("buildExecutionRoute", () => {
     expect(route.estimatedGrossPayout).toBe(16840);
   });
 
-  it("includes the 3.24 Spain quote when it is above the calculated minimum", () => {
+  it("excludes the 2.10 Spain quote when it is below the calculated minimum", () => {
     const route = buildExecutionRoute(spainIntent, DEMO_LIQUIDITY_BOOK);
 
-    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).toContain("spain-d");
+    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).not.toContain("spain-d");
+    expect(route.fills.map((fill) => fill.quoteId)).not.toContain("spain-d");
   });
 
   it("supports partial fills at the last selected quote", () => {
