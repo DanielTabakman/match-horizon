@@ -2,6 +2,7 @@
   color-scheme: light;
   background: #f5f4ef;
   color: #171916;
+  --product-header-safe-offset: 76px;
 }
 
 * {
@@ -828,7 +829,7 @@ button:disabled {
   gap: 14px;
   padding: 16px;
   position: sticky;
-  top: 16px;
+  top: calc(var(--product-header-safe-offset) + 16px);
 }
 
 .strategy-panel label,
@@ -1271,6 +1272,23 @@ button.button-primary:disabled {
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.radar-filters small {
+  color: #62665d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.refresh-status {
+  align-self: start;
+  background: #fff3d8;
+  border: 1px solid #d1a93f;
+  border-radius: 8px;
+  color: #76510f;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px 12px;
 }
 
 .empty-state {

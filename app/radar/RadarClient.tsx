@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   PythonStrategyResult,
@@ -55,6 +54,7 @@ const pythonSampleDescriptions: Record<string, string> = {
   "minimal-hello-strategy": "Tiny smoke test that returns a context-only result.",
 };
 const PYTHON_SCRIPT_STORAGE_KEY = "match-horizon:python-strategy-scripts";
+const DISPLAYED_OBSERVATION_LIMIT = 30;
 const DEFAULT_PYTHON_RUN_STATE: PythonRunState = {
   status: "idle",
   result: null,
@@ -88,6 +88,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSavedState = window.setTimeout(() => {
@@ -165,16 +166,17 @@ export default function RadarClient({ initialSnapshot }: Props) {
   );
   const filtered = ranked.filter(({ effectiveRouteState, observation }) => {
     const haystack = `${observation.title} ${observation.outcomeLabel} ${observation.venueLabel}`.toLowerCase();
-    const liquidity = Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0);
+    const askDepth = observation.availableAskSize ?? 0;
     const categoryLabel = observation.category ?? observation.sport ?? "Uncategorized";
     return (
       (venue === "all" || observation.venueId === venue) &&
       (status === "all" || effectiveRouteState === status) &&
       (category === "all" || categoryLabel === category) &&
       (!text || haystack.includes(text.toLowerCase())) &&
-      liquidity >= Number(minimumLiquidity || 0)
+      askDepth >= Number(minimumLiquidity || 0)
     );
   });
+  const displayed = filtered.slice(0, DISPLAYED_OBSERVATION_LIMIT);
   const hasActiveFilters =
     venue !== "all" || status !== "all" || category !== "all" || text.trim() !== "" || Number(minimumLiquidity || 0) > 0;
   const selected = filtered.find(({ observation }) => keyFor(observation) === selectedKey) ?? filtered[0] ?? null;
@@ -215,7 +217,17 @@ export default function RadarClient({ initialSnapshot }: Props) {
     setIsRefreshing(true);
     try {
       const response = await fetch("/api/radar", { cache: "no-store" });
-      setSnapshot((await response.json()) as RadarSnapshot);
+      if (!response.ok) {
+        throw new Error(`Radar refresh failed with HTTP ${response.status}.`);
+      }
+      const nextSnapshot = (await response.json()) as unknown;
+      if (!isRadarSnapshot(nextSnapshot)) {
+        throw new Error("Radar refresh returned an invalid response.");
+      }
+      setSnapshot(nextSnapshot);
+      setRefreshError(null);
+    } catch {
+      setRefreshError("Refresh failed. Showing the previous snapshot.");
     } finally {
       setIsRefreshing(false);
     }
@@ -409,7 +421,6 @@ export default function RadarClient({ initialSnapshot }: Props) {
           </p>
         </div>
         <div className="radar-actions">
-          <Link href="/">Fixture demo</Link>
           <button type="button" onClick={refresh} disabled={isRefreshing}>
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
@@ -418,10 +429,16 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
       <section className="radar-summary-strip" aria-label="Radar summary">
         <Metric label="Imported observations" value={snapshot.observations.length.toString()} />
-        <Metric label="Visible results" value={filtered.length.toString()} />
+        <Metric label="Matching observations" value={filtered.length.toString()} />
+        <Metric label="Displayed" value={`${displayed.length} of ${filtered.length}`} />
         <Metric label="Source status" value={summarizeHealth(snapshot.health)} />
         <Metric label="Snapshot time" value={formatTimestamp(snapshot.observedAt)} />
       </section>
+      {refreshError ? (
+        <p className="refresh-status" role="status">
+          {refreshError}
+        </p>
+      ) : null}
 
       <section className="health-grid" aria-label="Source health">
         {snapshot.health.map((health) => (
@@ -464,8 +481,9 @@ export default function RadarClient({ initialSnapshot }: Props) {
           <input aria-label="Search observations" placeholder="Title, outcome, venue" value={text} onChange={(event) => setText(event.target.value)} />
         </label>
         <label>
-          <span>Min depth</span>
+          <span>Min ask depth</span>
           <input aria-label="Minimum liquidity" inputMode="decimal" min="0" type="number" value={minimumLiquidity} onChange={(event) => setMinimumLiquidity(event.target.value)} />
+          <small>Filters by available ask size.</small>
         </label>
         <button type="button" className="button-ghost" onClick={clearFilters} disabled={!hasActiveFilters}>
           Clear filters
@@ -481,7 +499,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
               <button type="button" className="button-primary" onClick={clearFilters}>Clear filters</button>
             </div>
           ) : null}
-          {filtered.slice(0, 30).map(({ effectiveRouteState, observation, score, evaluation }) => (
+          {displayed.map(({ effectiveRouteState, observation, score, evaluation }) => (
             <button
               type="button"
               className={`radar-card ${selected && keyFor(selected.observation) === keyFor(observation) ? "selected" : ""}`}
@@ -495,7 +513,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
               <div className="metrics-row">
                 <Metric label="Best ask" value={fmtProb(observation.bestAskProbability ?? observation.midpointProbability)} />
                 <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />
-                <Metric label="Depth" value={fmtSize(Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0))} />
+                <Metric label="Ask depth" value={fmtSize(observation.availableAskSize ?? 0)} />
                 <Metric label="Age" value={fmtAge(observation.observedAt, snapshot.observedAt)} />
               </div>
             </button>
@@ -663,7 +681,7 @@ function SelectedMarketSummary({
   observedAt: string;
 }) {
   const observation = selected.observation;
-  const depth = Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0);
+  const askDepth = observation.availableAskSize ?? 0;
 
   return (
     <section className="selected-market-summary" aria-label="Selected market summary">
@@ -676,7 +694,7 @@ function SelectedMarketSummary({
         <Metric label="State" value={routeLabels[selected.effectiveRouteState]} />
         <Metric label="Best ask" value={fmtProb(observation.bestAskProbability ?? observation.midpointProbability)} />
         <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />
-        <Metric label="Depth" value={fmtSize(depth)} />
+        <Metric label="Ask depth" value={fmtSize(askDepth)} />
         <Metric label="Age" value={fmtAge(observation.observedAt, observedAt)} />
         <Metric label="Score" value={selected.score.total.toFixed(1)} />
       </div>
@@ -729,13 +747,32 @@ function describeRecipe(recipe: StrategyRecipe): string {
 }
 
 function summarizeHealth(health: RadarSnapshot["health"]): string {
-  if (health.some((item) => item.status === "live")) {
-    return "Live sources";
+  const counts = health.reduce(
+    (current, item) => ({
+      ...current,
+      [item.status]: current[item.status] + 1,
+    }),
+    { fallback: 0, live: 0, unavailable: 0 },
+  );
+  const parts = [
+    counts.live > 0 ? `${counts.live} live` : null,
+    counts.fallback > 0 ? `${counts.fallback} fallback` : null,
+    counts.unavailable > 0 ? `${counts.unavailable} unavailable` : null,
+  ].filter((part): part is string => part !== null);
+
+  return parts.length === 0 ? "unavailable" : parts.join(" · ");
+}
+
+function isRadarSnapshot(value: unknown): value is RadarSnapshot {
+  if (typeof value !== "object" || value === null) {
+    return false;
   }
-  if (health.some((item) => item.status === "fallback")) {
-    return "Fixture fallback";
-  }
-  return "Unavailable";
+  const candidate = value as Partial<RadarSnapshot>;
+  return (
+    typeof candidate.observedAt === "string" &&
+    Array.isArray(candidate.observations) &&
+    Array.isArray(candidate.health)
+  );
 }
 
 function isSavedPythonScript(value: unknown): value is SavedPythonScript {
