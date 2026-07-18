@@ -8,6 +8,7 @@ import {
   calculatePricingPolicy,
 } from "./pricing";
 import { buildExecutionRoute } from "./router";
+import { buildPaperPredictionMarketQuote, canBuildRouteWithPaperQuotePolicy } from "./paperQuote";
 
 describe("required-edge pricing", () => {
   it("converts a 50% belief and 10% required edge into 2.20 minimum odds", () => {
@@ -143,6 +144,7 @@ describe("default pricing policy with the router", () => {
 
   it("changes the route invalidation key when pricing or sizing inputs change", () => {
     const baseKey = buildExecutionPlanKey({
+      strategyPresetId: "standard",
       outcomeId: "participant_2",
       userProbability: 0.5,
       requiredEdgePercent: "10",
@@ -150,17 +152,25 @@ describe("default pricing policy with the router", () => {
       kellyMultiplier: "half",
       sizingMode: "kelly",
       manualStake: "5000",
+      includePaperQuote: false,
+      paperDecimalOdds: "3.25",
+      paperAvailableStake: "1000",
     });
 
     const variants = [
+      { strategyPresetId: "conservative" },
       { requiredEdgePercent: "12" },
       { bankroll: "90000" },
       { kellyMultiplier: "quarter" as const },
       { sizingMode: "manual" as const },
       { manualStake: "4500" },
       { userProbability: 0.49 },
+      { includePaperQuote: true },
+      { paperDecimalOdds: "3.1" },
+      { paperAvailableStake: "500" },
     ].map((change) =>
       buildExecutionPlanKey({
+        strategyPresetId: "standard",
         outcomeId: "participant_2",
         userProbability: 0.5,
         requiredEdgePercent: "10",
@@ -168,10 +178,85 @@ describe("default pricing policy with the router", () => {
         kellyMultiplier: "half",
         sizingMode: "kelly",
         manualStake: "5000",
+        includePaperQuote: false,
+        paperDecimalOdds: "3.25",
+        paperAvailableStake: "1000",
         ...change,
       }),
     );
 
     expect(new Set(variants)).not.toContain(baseKey);
+  });
+
+  it("routes a valid paper prediction-market quote through the existing router", () => {
+    const policy = calculateKellySizingPolicy({
+      userProbability: 0.5,
+      requiredEdge: 0.1,
+      bankroll: 120000,
+      kellyMultiplier: "half",
+    });
+    const paperQuote = buildPaperPredictionMarketQuote({
+      enabled: true,
+      outcomeId: "participant_2",
+      decimalOdds: 3.25,
+      availableStake: 1000,
+    });
+    const route = buildExecutionRoute(
+      {
+        outcomeId: "participant_2",
+        requestedStake: policy.suggestedStake + 1000,
+        minimumDecimalOdds: policy.minimumDecimalOdds,
+        userProbability: policy.userProbability,
+      },
+      [...DEMO_LIQUIDITY_BOOK, paperQuote!],
+    );
+
+    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).toContain("paper-external-quote");
+    expect(route.fills.map((fill) => fill.quoteId)).toContain("paper-external-quote");
+  });
+
+  it("excludes a paper prediction-market quote below the calculated minimum", () => {
+    const paperQuote = buildPaperPredictionMarketQuote({
+      enabled: true,
+      outcomeId: "participant_2",
+      decimalOdds: 2.1,
+      availableStake: 1000,
+    });
+    const route = buildExecutionRoute(
+      {
+        outcomeId: "participant_2",
+        requestedStake: 6000,
+        minimumDecimalOdds: 2.2,
+        userProbability: 0.5,
+      },
+      [...DEMO_LIQUIDITY_BOOK, paperQuote!],
+    );
+
+    expect(route.eligibleQuotes.map((quote) => quote.quoteId)).not.toContain("paper-external-quote");
+    expect(route.fills.map((fill) => fill.quoteId)).not.toContain("paper-external-quote");
+  });
+
+  it("blocks route construction when enabled paper quote input is invalid", () => {
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: false,
+        paperQuoteIsValid: false,
+      }),
+    ).toBe(true);
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: true,
+        paperQuoteIsValid: true,
+      }),
+    ).toBe(true);
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: true,
+        paperQuoteIsValid: false,
+      }),
+    ).toBe(false);
   });
 });

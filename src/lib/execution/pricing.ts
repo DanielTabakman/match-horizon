@@ -36,6 +36,7 @@ export type ExecutionPlan = {
 };
 
 export type ExecutionPlanKeyInput = {
+  strategyPresetId: string;
   outcomeId: string | null;
   userProbability: number | null;
   requiredEdgePercent: string;
@@ -43,10 +44,14 @@ export type ExecutionPlanKeyInput = {
   kellyMultiplier: KellyMultiplier;
   sizingMode: ExecutionSizingMode;
   manualStake: string;
+  includePaperQuote: boolean;
+  paperDecimalOdds: string;
+  paperAvailableStake: string;
 };
 
 export function buildExecutionPlanKey(input: ExecutionPlanKeyInput): string {
   return [
+    input.strategyPresetId,
     input.outcomeId ?? "none",
     input.userProbability ?? "none",
     input.requiredEdgePercent,
@@ -54,6 +59,9 @@ export function buildExecutionPlanKey(input: ExecutionPlanKeyInput): string {
     input.kellyMultiplier,
     input.sizingMode,
     input.manualStake,
+    input.includePaperQuote ? "paper-on" : "paper-off",
+    input.paperDecimalOdds,
+    input.paperAvailableStake,
   ].join(":");
 }
 

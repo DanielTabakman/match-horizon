@@ -125,11 +125,14 @@ This is intentional and documented. The app must not imply that it observed hist
 
 Issue #24 extends the deterministic execution-routing demo with required-edge pricing and fractional Kelly sizing. The pricing module converts the user's selected outcome probability into fair decimal odds, applies the required expected return to produce calculated minimum odds, and calculates Quarter, Half, or Full Kelly references from that minimum price. The router still validates the selected outcome, target stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the calculated minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple generic venues, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and expected return from the user's belief.
 
+Issue #30 adds a narrow presentation layer over the same engine: a Standard strategy preset, a Conservative strategy preset, a Custom mode for direct edits, and one optional manually entered paper prediction-market quote. The paper quote is off by default, is not live data, and only enters the available-liquidity display and router when the entered odds and size are valid.
+
 The committed demo liquidity is generic and simulated. It is not a TxLINE payload, not a sportsbook integration, and not an exchange integration.
 
 Default Spain route:
 
 - User probability: `50%`
+- Strategy preset: Standard
 - Fair decimal odds: `2.00`
 - Required edge: `10%`
 - Calculated minimum odds: `2.20`
@@ -147,6 +150,10 @@ Default Spain route:
 - Estimated gross payout: `$16,840`
 
 The deliberately poor Venue D price makes the execution policy visible: it is excluded before routing, while the full `$5,000` target is filled across the three better venues. Manual sizing remains available by disabling Kelly sizing.
+
+The Conservative preset applies a `15%` required edge, Quarter Kelly, and Kelly sizing. Custom preserves the currently displayed values when selected and allows direct edits to required edge, Kelly fraction, and Kelly/manual sizing mode.
+
+The optional paper prediction-market quote defaults to decimal odds `3.25` and available size `$1,000` when enabled. It is labeled `Paper Prediction Market`, uses quote id `paper-external-quote` and venue id `paper-prediction-market`, and is explicitly marked as manually entered paper data rather than a live connection.
 
 When replay starts, the current pricing policy, sizing policy, simulated route, frozen user belief, and expression are frozen together. Later input edits do not rewrite that frozen plan or the simulated settlement.
 

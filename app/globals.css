@@ -449,6 +449,52 @@ button:disabled {
   font-size: 13px;
 }
 
+.paper-quote-panel,
+.coming-soon-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d7d4c9;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.paper-quote-panel .toggle-control {
+  display: grid;
+}
+
+.paper-quote-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.paper-quote-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.paper-quote-controls label span {
+  color: #62665d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.coming-soon-panel {
+  background: #f8fbff;
+  border-color: #bfd3dd;
+}
+
+.coming-soon-panel h3 {
+  font-size: 18px;
+}
+
+.coming-soon-panel p {
+  max-width: none;
+  color: #3f4944;
+  font-size: 13px;
+}
+
 .pricing-policy {
   grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
@@ -555,6 +601,10 @@ button:disabled {
   .result-receipt dl > div,
   .simulated-settlement dl > div,
   .execution-row {
+    grid-template-columns: 1fr;
+  }
+
+  .paper-quote-controls {
     grid-template-columns: 1fr;
   }
 

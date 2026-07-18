@@ -48,11 +48,12 @@ Use the default Spain example.
 
 Explain the layers before building the route:
 
-"TxLINE is not the execution venue. It supplies normalized market and result data. The simulated venues here stand in for places where an order could actually be filled: sportsbooks, exchanges, on-chain markets, or private market makers. A real version would connect to those venues, normalize their executable prices and available size, and feed them into this same router."
+"TxLINE is not the execution venue. It supplies normalized market and result data. The route here is a deterministic simulation over normalized quote objects. That same shape is what future read-only connectors would need to provide before any prices could be compared."
 
 Call out:
 
 - The panel says `Simulation only - no wager submitted`.
+- The Strategy preset is `Standard`, which keeps `10%` required edge and Half Kelly as the default.
 - The required edge defaults to `10%`.
 - A `50%` belief produces fair odds of `2.00`.
 - A `10%` required edge turns that into calculated minimum odds of `2.20`.
@@ -62,6 +63,7 @@ Call out:
 - Kelly sizing is a simulation reference based on the user's probability, not a guarantee or recommendation.
 - Manual stake sizing remains available by disabling `Use Kelly sizing`.
 - The simulated liquidity uses generic venue names only.
+- Point briefly to `Prediction-market connections - Coming soon`; the optional paper quote is manually entered paper data, off by default, and not a live connector.
 - Build the route.
 - Venue D offers `2.10`, below the calculated `2.20` minimum, so the router rejects it.
 - The fills are `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
