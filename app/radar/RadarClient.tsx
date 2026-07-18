@@ -1,0 +1,612 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  PythonStrategyResult,
+  PythonStrategyRunMode,
+  RadarSnapshot,
+  StrategyRecipe,
+  UserBeliefByMapping,
+} from "../../src/lib/marketRadar/types";
+import {
+  BUILT_IN_RECIPES,
+  DEFAULT_CUSTOM_RECIPE,
+  calculateChangeMyMindThreshold,
+  duelRecipes,
+  evaluateRecipe,
+  scoreObservation,
+} from "../../src/lib/marketRadar/strategyEngine";
+import { buildMappedObservationPaperQuote, effectiveObservationRouteState, evaluatePaperEligibility } from "../../src/lib/marketRadar/paperRoute";
+import { PYTHON_STRATEGY_SAMPLES } from "../../src/lib/marketRadar/pythonSamples";
+import {
+  PYTHON_STRATEGY_LIMITS,
+  buildPythonStrategyContext,
+  enforcePythonAdvisoryRouteGate,
+  validatePythonStrategyResult,
+  validatePythonStrategyRunInput,
+} from "../../src/lib/marketRadar/pythonStrategy";
+import { RADAR_TXLINE_REFERENCE } from "../../src/lib/marketRadar/txlineReference";
+
+type Props = { initialSnapshot: RadarSnapshot };
+type LabTab = "built-in" | "python";
+type SavedPythonScript = { id: string; name: string; source: string };
+type PythonRunState =
+  | { status: "idle"; result: null; stdout: string; stderr: string; error: string | null; elapsedMs: number | null; runtimeVersion: string | null }
+  | { status: "running"; result: null; stdout: string; stderr: string; error: string | null; elapsedMs: number | null; runtimeVersion: string | null }
+  | { status: "success"; result: PythonStrategyResult; stdout: string; stderr: string; error: null; elapsedMs: number; runtimeVersion: string | null }
+  | { status: "error"; result: null; stdout: string; stderr: string; error: string; elapsedMs: number | null; runtimeVersion: string | null };
+
+const routeLabels = { "context-only": "Context only", mapped: "Mapped", "paper-executable": "Paper executable" };
+const PYTHON_SCRIPT_STORAGE_KEY = "match-horizon:python-strategy-scripts";
+const DEFAULT_PYTHON_RUN_STATE: PythonRunState = {
+  status: "idle",
+  result: null,
+  stdout: "",
+  stderr: "",
+  error: null,
+  elapsedMs: null,
+  runtimeVersion: null,
+};
+
+export default function RadarClient({ initialSnapshot }: Props) {
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [labTab, setLabTab] = useState<LabTab>("built-in");
+  const [venue, setVenue] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [text, setText] = useState("");
+  const [minimumLiquidity, setMinimumLiquidity] = useState("0");
+  const [selectedRecipeId, setSelectedRecipeId] = useState("stale-market");
+  const [duelRecipeId, setDuelRecipeId] = useState("liquidity-sweep");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [userBeliefs, setUserBeliefs] = useState<UserBeliefByMapping>({});
+  const [customRecipe, setCustomRecipe] = useState<StrategyRecipe>(DEFAULT_CUSTOM_RECIPE);
+  const [pythonSampleId, setPythonSampleId] = useState(PYTHON_STRATEGY_SAMPLES[0].id);
+  const [pythonSource, setPythonSource] = useState(PYTHON_STRATEGY_SAMPLES[0].source);
+  const [pythonRunMode, setPythonRunMode] = useState<PythonStrategyRunMode>("selected-observation");
+  const [pythonTimeoutMs, setPythonTimeoutMs] = useState(PYTHON_STRATEGY_LIMITS.defaultTimeoutMs);
+  const [savedPythonScripts, setSavedPythonScripts] = useState<SavedPythonScript[]>([]);
+  const [localStorageLoaded, setLocalStorageLoaded] = useState(false);
+  const [pythonRun, setPythonRun] = useState<PythonRunState>(DEFAULT_PYTHON_RUN_STATE);
+  const workerRef = useRef<Worker | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    const loadSavedState = window.setTimeout(() => {
+      try {
+        const savedRecipe = window.localStorage.getItem("match-horizon:radar-custom-recipe");
+        if (savedRecipe) {
+          setCustomRecipe({ ...DEFAULT_CUSTOM_RECIPE, ...JSON.parse(savedRecipe) });
+        }
+      } catch {
+        window.localStorage.removeItem("match-horizon:radar-custom-recipe");
+      }
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(PYTHON_SCRIPT_STORAGE_KEY) ?? "[]") as unknown;
+        setSavedPythonScripts(Array.isArray(parsed) ? parsed.filter((item): item is SavedPythonScript => isSavedPythonScript(item)) : []);
+      } catch {
+        window.localStorage.removeItem(PYTHON_SCRIPT_STORAGE_KEY);
+      }
+      setLocalStorageLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(loadSavedState);
+  }, []);
+  useEffect(() => {
+    if (localStorageLoaded) {
+      window.localStorage.setItem("match-horizon:radar-custom-recipe", JSON.stringify(customRecipe));
+    }
+  }, [customRecipe, localStorageLoaded]);
+  useEffect(() => {
+    if (localStorageLoaded) {
+      window.localStorage.setItem(PYTHON_SCRIPT_STORAGE_KEY, JSON.stringify(savedPythonScripts));
+    }
+  }, [savedPythonScripts, localStorageLoaded]);
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    },
+    [],
+  );
+
+  const recipes = useMemo(() => [...BUILT_IN_RECIPES, customRecipe], [customRecipe]);
+  const selectedRecipe = recipes.find((recipe) => recipe.id === selectedRecipeId) ?? recipes[0];
+  const duelRecipe = recipes.find((recipe) => recipe.id === duelRecipeId) ?? recipes[1];
+  const evaluationNow = Date.parse(snapshot.observedAt);
+  const categories = useMemo(
+    () => Array.from(new Set(snapshot.observations.map((item) => item.category ?? item.sport ?? "Uncategorized"))).sort(),
+    [snapshot.observations],
+  );
+  const ranked = useMemo(
+    () =>
+      snapshot.observations
+        .map((observation) => {
+          const evaluation = evaluateRecipe({
+            recipe: selectedRecipe,
+            observation,
+            observations: snapshot.observations,
+            userBeliefs,
+            txlineReference: RADAR_TXLINE_REFERENCE,
+            now: evaluationNow,
+          });
+          const eligibility = evaluatePaperEligibility({ observation, evaluation, recipe: selectedRecipe, now: evaluationNow });
+          return {
+            observation,
+            score: scoreObservation({ observation, observations: snapshot.observations, userBeliefs, now: evaluationNow }),
+            evaluation,
+            eligibility,
+            effectiveRouteState: effectiveObservationRouteState({ observation, eligibility }),
+          };
+        })
+        .sort((left, right) => right.score.total - left.score.total),
+    [evaluationNow, selectedRecipe, snapshot.observations, userBeliefs],
+  );
+  const filtered = ranked.filter(({ effectiveRouteState, observation }) => {
+    const haystack = `${observation.title} ${observation.outcomeLabel} ${observation.venueLabel}`.toLowerCase();
+    const liquidity = Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0);
+    const categoryLabel = observation.category ?? observation.sport ?? "Uncategorized";
+    return (
+      (venue === "all" || observation.venueId === venue) &&
+      (status === "all" || effectiveRouteState === status) &&
+      (category === "all" || categoryLabel === category) &&
+      (!text || haystack.includes(text.toLowerCase())) &&
+      liquidity >= Number(minimumLiquidity || 0)
+    );
+  });
+  const selected = filtered.find(({ observation }) => keyFor(observation) === selectedKey) ?? filtered[0] ?? null;
+  const selectedEvaluation = selected?.evaluation ?? null;
+  const threshold = selected && selectedEvaluation
+    ? calculateChangeMyMindThreshold({
+        recipe: selectedRecipe,
+        observation: selected.observation,
+        referenceProbability: selectedEvaluation.referenceProbability,
+      })
+    : null;
+  const duel = selected
+    ? duelRecipes({
+        left: selectedRecipe,
+        right: duelRecipe,
+        observation: selected.observation,
+        observations: snapshot.observations,
+        userBeliefs,
+        txlineReference: RADAR_TXLINE_REFERENCE,
+        now: evaluationNow,
+      })
+    : null;
+  const paperEligibility = selected?.eligibility ?? null;
+  const paperQuote = selected && paperEligibility
+    ? buildMappedObservationPaperQuote({ observation: selected.observation, eligibility: paperEligibility })
+    : null;
+  const pythonContext = buildPythonStrategyContext({
+    selectedObservation: selected?.observation ?? null,
+    observations: filtered.map(({ observation }) => observation),
+    userBeliefs,
+    txlineReference: RADAR_TXLINE_REFERENCE,
+    selectedStrategyParameters: selectedRecipe,
+    runMode: pythonRunMode,
+    now: snapshot.observedAt,
+  });
+
+  async function refresh() {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("/api/radar", { cache: "no-store" });
+      setSnapshot((await response.json()) as RadarSnapshot);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  function updateBelief(value: string) {
+    if (!selected?.observation.mapping) return;
+    const parsed = Number(value);
+    setUserBeliefs((current) => ({
+      ...current,
+      [selected.observation.mapping!.id]: Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) / 100 : 0,
+    }));
+  }
+
+  function loadPythonSample(sampleId: string) {
+    const sample = PYTHON_STRATEGY_SAMPLES.find((item) => item.id === sampleId) ?? PYTHON_STRATEGY_SAMPLES[0];
+    setPythonSampleId(sample.id);
+    setPythonSource(sample.source);
+    setPythonRun(DEFAULT_PYTHON_RUN_STATE);
+  }
+
+  function savePythonScript() {
+    const fallbackName = PYTHON_STRATEGY_SAMPLES.find((item) => item.id === pythonSampleId)?.label ?? "Custom Strategy";
+    const name = promptForText("Script name", fallbackName, fallbackName);
+    if (!name) return;
+    setSavedPythonScripts((current) => [
+      { id: `${Date.now()}`, name, source: pythonSource },
+      ...current.filter((item) => item.name !== name),
+    ]);
+  }
+
+  function loadSavedPythonScript(id: string) {
+    const script = savedPythonScripts.find((item) => item.id === id);
+    if (!script) return;
+    setPythonSampleId("");
+    setPythonSource(script.source);
+    setPythonRun(DEFAULT_PYTHON_RUN_STATE);
+  }
+
+  function renameSavedPythonScript(id: string) {
+    const script = savedPythonScripts.find((item) => item.id === id);
+    if (!script) return;
+    const name = promptForText("New script name", script.name, null);
+    if (!name) return;
+    setSavedPythonScripts((current) => current.map((item) => (item.id === id ? { ...item, name } : item)));
+  }
+
+  function deleteSavedPythonScript(id: string) {
+    setSavedPythonScripts((current) => current.filter((item) => item.id !== id));
+  }
+
+  function resetPythonLab() {
+    stopPythonRun("Python worker reset.");
+    loadPythonSample(PYTHON_STRATEGY_SAMPLES[0].id);
+  }
+
+  function stopPythonRun(message = "Python run stopped.") {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    setPythonRun((current) =>
+      current.status === "running"
+        ? { status: "error", result: null, stdout: current.stdout, stderr: current.stderr, error: message, elapsedMs: null, runtimeVersion: null }
+        : current,
+    );
+  }
+
+  function runPythonStrategy() {
+    stopPythonRun();
+    try {
+      validatePythonStrategyRunInput({ source: pythonSource, context: pythonContext });
+    } catch (error) {
+      setPythonRun({
+        status: "error",
+        result: null,
+        stdout: "",
+        stderr: "",
+        error: formatError(error),
+        elapsedMs: null,
+        runtimeVersion: null,
+      });
+      return;
+    }
+
+    const worker = new Worker("/python-strategy-worker.js", { type: "module" });
+    workerRef.current = worker;
+    setPythonRun({ status: "running", result: null, stdout: "", stderr: "", error: null, elapsedMs: null, runtimeVersion: null });
+    timeoutRef.current = window.setTimeout(() => {
+      stopPythonRun("Python runtime failed to load within 15000ms.");
+    }, 15_000);
+
+    worker.onmessage = (event: MessageEvent) => {
+      if (event.data?.type === "started") {
+        if (timeoutRef.current) {
+          window.clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = window.setTimeout(() => {
+          stopPythonRun(`Python run terminated after ${pythonTimeoutMs}ms.`);
+        }, pythonTimeoutMs);
+        setPythonRun((current) => ({
+          ...current,
+          runtimeVersion: typeof event.data.runtimeVersion === "string" ? event.data.runtimeVersion : null,
+        }));
+        return;
+      }
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      worker.terminate();
+      workerRef.current = null;
+
+      if (event.data?.type === "success") {
+        try {
+          const result = enforcePythonAdvisoryRouteGate({
+            result: validatePythonStrategyResult(event.data.result),
+            selectedObservation: selected?.observation ?? null,
+          });
+          setPythonRun({
+            status: "success",
+            result,
+            stdout: String(event.data.stdout ?? ""),
+            stderr: String(event.data.stderr ?? ""),
+            error: null,
+            elapsedMs: Number(event.data.elapsedMs ?? 0),
+            runtimeVersion: typeof event.data.runtimeVersion === "string" ? event.data.runtimeVersion : null,
+          });
+        } catch (error) {
+          setPythonRun({
+            status: "error",
+            result: null,
+            stdout: String(event.data.stdout ?? ""),
+            stderr: String(event.data.stderr ?? ""),
+            error: formatError(error),
+            elapsedMs: Number(event.data.elapsedMs ?? 0),
+            runtimeVersion: typeof event.data.runtimeVersion === "string" ? event.data.runtimeVersion : null,
+          });
+        }
+      } else {
+        setPythonRun({
+          status: "error",
+          result: null,
+          stdout: String(event.data?.stdout ?? ""),
+          stderr: String(event.data?.stderr ?? ""),
+          error: String(event.data?.error ?? "Python worker failed."),
+          elapsedMs: typeof event.data?.elapsedMs === "number" ? event.data.elapsedMs : null,
+          runtimeVersion: typeof event.data?.runtimeVersion === "string" ? event.data.runtimeVersion : null,
+        });
+      }
+    };
+    worker.onerror = (error) => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      worker.terminate();
+      workerRef.current = null;
+      setPythonRun({
+        status: "error",
+        result: null,
+        stdout: "",
+        stderr: "",
+        error: error.message || "Python worker failed to load. Fixture-backed Radar data still works without Pyodide.",
+        elapsedMs: null,
+        runtimeVersion: null,
+      });
+    };
+    worker.postMessage({ type: "run", source: pythonSource, context: pythonContext });
+  }
+
+  return (
+    <main className="shell radar-shell">
+      <section className="radar-topbar">
+        <div>
+          <p className="eyebrow">Market Radar</p>
+          <h1>Read-only external market intelligence</h1>
+          <p className="muted">
+            Live connector observations, explicit mappings, transparent scoring, and paper-only strategy recipes.
+          </p>
+        </div>
+        <div className="radar-actions">
+          <Link href="/">Judge flow</Link>
+          <button type="button" onClick={refresh} disabled={isRefreshing}>
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+      </section>
+
+      <section className="health-grid" aria-label="Source health">
+        {snapshot.health.map((health) => (
+          <div className={`health-card ${health.status}`} key={health.venueId}>
+            <span>{health.venueLabel}</span>
+            <strong>{health.status === "fallback" ? "Fixture fallback" : health.status}</strong>
+            <p>{health.message}</p>
+            <small>{health.importedCount} imported{health.latencyMs !== null ? ` | ${health.latencyMs}ms` : ""}</small>
+          </div>
+        ))}
+      </section>
+
+      <section className="radar-filters" aria-label="Radar filters">
+        <select value={venue} onChange={(event) => setVenue(event.target.value)} aria-label="Venue filter">
+          <option value="all">All venues</option>
+          <option value="sx-bet">SX Bet</option>
+          <option value="polymarket">Polymarket</option>
+        </select>
+        <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category filter">
+          <option value="all">All sports/categories</option>
+          {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Mapping state filter">
+          <option value="all">All mapping states</option>
+          <option value="context-only">Context only</option>
+          <option value="mapped">Mapped</option>
+          <option value="paper-executable">Paper executable</option>
+        </select>
+        <input aria-label="Search observations" placeholder="Search title, outcome, venue" value={text} onChange={(event) => setText(event.target.value)} />
+        <input aria-label="Minimum liquidity" inputMode="decimal" min="0" type="number" value={minimumLiquidity} onChange={(event) => setMinimumLiquidity(event.target.value)} />
+      </section>
+
+      <section className="radar-layout">
+        <div className="radar-cards" aria-label="Ranked market observations">
+          {filtered.slice(0, 30).map(({ effectiveRouteState, observation, score, evaluation }) => (
+            <button
+              type="button"
+              className={`radar-card ${selected && keyFor(selected.observation) === keyFor(observation) ? "selected" : ""}`}
+              key={keyFor(observation)}
+              onClick={() => setSelectedKey(keyFor(observation))}
+            >
+              <div className="card-line"><span>{observation.venueLabel}</span><strong>{score.total.toFixed(1)}</strong></div>
+              <h2>{observation.title}</h2>
+              <p>{observation.outcomeLabel}</p>
+              <div className="tag-row"><span>{routeLabels[effectiveRouteState]}</span><span>{evaluation.verdict.replace("-", " ")}</span></div>
+              <div className="metrics-row">
+                <Metric label="Prob" value={fmtProb(observation.midpointProbability ?? observation.bestAskProbability)} />
+                <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />
+                <Metric label="Depth" value={fmtSize(Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0))} />
+                <Metric label="Age" value={fmtAge(observation.observedAt, snapshot.observedAt)} />
+              </div>
+              <div className="score-bars">
+                {Object.entries(score.breakdown).map(([label, value]) => <span key={label}>{label}: {value.toFixed(2)}</span>)}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <aside className="strategy-panel" aria-label="Strategy Lab">
+          <div className="panel-heading"><div><h2>Strategy Lab</h2><span>{selected ? selected.observation.outcomeLabel : "No observation selected"}</span></div></div>
+          <div className="lab-tabs" role="tablist" aria-label="Strategy Lab mode">
+            <button type="button" className={labTab === "built-in" ? "active" : ""} onClick={() => setLabTab("built-in")}>Built-in</button>
+            <button type="button" className={labTab === "python" ? "active" : ""} onClick={() => setLabTab("python")}>Python Strategy</button>
+          </div>
+          {labTab === "built-in" ? (
+            <>
+              <label><span>Recipe</span><select value={selectedRecipeId} onChange={(event) => setSelectedRecipeId(event.target.value)}>{recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.label}</option>)}</select></label>
+              {selectedRecipeId === "custom" ? (
+                <div className="custom-recipe">
+                  <label><span>Minimum edge (%)</span><input type="number" value={(customRecipe.minimumEdge * 100).toString()} onChange={(event) => setCustomRecipe({ ...customRecipe, minimumEdge: Number(event.target.value) / 100 })} /></label>
+                  <label><span>Maximum spread (%)</span><input type="number" value={customRecipe.maximumSpread === null ? "" : (customRecipe.maximumSpread * 100).toString()} onChange={(event) => setCustomRecipe({ ...customRecipe, maximumSpread: Number(event.target.value) / 100 })} /></label>
+                  <label><span>Minimum depth</span><input type="number" value={customRecipe.minimumDepth ?? 0} onChange={(event) => setCustomRecipe({ ...customRecipe, minimumDepth: Number(event.target.value) })} /></label>
+                </div>
+              ) : null}
+              {selected?.observation.mapping ? (
+                <label><span>User belief for this mapping (%)</span><input inputMode="decimal" min="0" max="100" type="number" value={((userBeliefs[selected.observation.mapping.id] ?? 0) * 100).toString()} onChange={(event) => updateBelief(event.target.value)} /></label>
+              ) : <p className="radar-note">No mapping exists, so user-belief gates remain context-only.</p>}
+
+              {selectedEvaluation ? (
+                <div className={`evaluation ${selectedEvaluation.verdict}`}>
+                  <strong>{selectedEvaluation.verdict.replace("-", " ")}</strong>
+                  {[...selectedEvaluation.acceptedReasons, ...selectedEvaluation.rejectedReasons, ...selectedEvaluation.contextOnlyReasons].map((reason) => <p key={reason}>{reason}</p>)}
+                  <Metric label="Reference" value={fmtProb(selectedEvaluation.referenceProbability)} />
+                  <Metric label="Edge" value={fmtSignedProb(selectedEvaluation.edge)} />
+                  <Metric label="Paper stake" value={selectedEvaluation.stake === null ? "-" : `$${selectedEvaluation.stake.toFixed(0)}`} />
+                </div>
+              ) : null}
+
+              {threshold ? <div className="threshold-box"><h3>What would change my mind?</h3><p>{threshold.explanation}</p><Metric label="Current ask" value={fmtProb(threshold.currentAskProbability)} /><Metric label="Minimum odds" value={threshold.thresholdDecimalOdds === null ? "-" : threshold.thresholdDecimalOdds.toFixed(2)} /></div> : null}
+
+              <BuiltInDuel duelRecipeId={duelRecipeId} recipes={recipes} setDuelRecipeId={setDuelRecipeId} duel={duel} />
+            </>
+          ) : (
+            <section className="python-lab" aria-label="Python Strategy Lab">
+              <p className="python-badge">Trusted local script — paper analysis only</p>
+              <p className="radar-note">Runs in a disposable Pyodide Web Worker with structured-cloned JSON. Browser worker isolation limits blast radius but is not a complete adversarial sandbox.</p>
+              <label htmlFor="python-sample"><span>Editable sample</span></label>
+              <select id="python-sample" value={pythonSampleId} onChange={(event) => loadPythonSample(event.target.value)}>{PYTHON_STRATEGY_SAMPLES.map((sample) => <option key={sample.id} value={sample.id}>{sample.label}</option>)}</select>
+              <div className="python-actions">
+                <button type="button" onClick={() => navigator.clipboard.writeText(pythonSource)}>Copy sample</button>
+                <button type="button" onClick={savePythonScript}>Save</button>
+                <button type="button" onClick={resetPythonLab}>Reset</button>
+              </div>
+              {savedPythonScripts.length > 0 ? (
+                <div className="saved-scripts">
+                  {savedPythonScripts.map((script) => (
+                    <div key={script.id}>
+                      <button type="button" onClick={() => loadSavedPythonScript(script.id)}>{script.name}</button>
+                      <button type="button" onClick={() => renameSavedPythonScript(script.id)}>Rename</button>
+                      <button type="button" onClick={() => deleteSavedPythonScript(script.id)}>Delete</button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <label htmlFor="python-source"><span>Python strategy code</span></label>
+              <textarea id="python-source" value={pythonSource} onChange={(event) => setPythonSource(event.target.value)} spellCheck={false} />
+              <div className="python-run-grid">
+                <label htmlFor="python-run-mode"><span>Run against</span></label>
+                <select id="python-run-mode" value={pythonRunMode} onChange={(event) => setPythonRunMode(event.target.value as PythonStrategyRunMode)}><option value="selected-observation">Selected observation</option><option value="filtered-batch">Current filtered batch</option></select>
+                <label htmlFor="python-timeout"><span>Timeout ms</span></label>
+                <input id="python-timeout" type="number" min={500} max={PYTHON_STRATEGY_LIMITS.maximumTimeoutMs} step={500} value={pythonTimeoutMs} onChange={(event) => setPythonTimeoutMs(Math.min(PYTHON_STRATEGY_LIMITS.maximumTimeoutMs, Math.max(500, Number(event.target.value))))} />
+              </div>
+              <div className="python-actions">
+                <button type="button" onClick={runPythonStrategy} disabled={pythonRun.status === "running"}>{pythonRun.status === "running" ? "Running..." : "Run"}</button>
+                <button type="button" onClick={() => stopPythonRun()} disabled={pythonRun.status !== "running"}>Stop</button>
+              </div>
+              <div className={`evaluation ${pythonRun.result?.decision === "accept" ? "accepted" : pythonRun.result?.decision === "reject" ? "rejected" : pythonRun.status === "error" ? "rejected" : "context-only"}`}>
+                <strong>{pythonRun.status}</strong>
+                {pythonRun.result ? (
+                  <>
+                    <p>{pythonRun.result.decision}</p>
+                    {pythonRun.result.reasons.map((reason) => <p key={reason}>{reason}</p>)}
+                    <Metric label="Score" value={pythonRun.result.score === null ? "-" : pythonRun.result.score.toFixed(2)} />
+                    <Metric label="Min odds" value={pythonRun.result.proposedMinimumOdds === undefined || pythonRun.result.proposedMinimumOdds === null ? "-" : pythonRun.result.proposedMinimumOdds.toFixed(2)} />
+                    <Metric label="Stake" value={pythonRun.result.proposedStake === undefined || pythonRun.result.proposedStake === null ? "-" : `$${pythonRun.result.proposedStake.toFixed(0)}`} />
+                  </>
+                ) : null}
+                {pythonRun.error ? <p>{pythonRun.error}</p> : null}
+                <Metric label="Timing" value={pythonRun.elapsedMs === null ? "-" : `${pythonRun.elapsedMs}ms`} />
+                <Metric label="Runtime" value={pythonRun.runtimeVersion ?? "not loaded"} />
+              </div>
+              {pythonRun.result && selectedEvaluation ? (
+                <div className="duel-box">
+                  <h3>Strategy Duel</h3>
+                  <p>{selectedRecipe.label}: {selectedEvaluation.verdict} | Python: {pythonRun.result.decision}</p>
+                </div>
+              ) : null}
+              <div className="python-logs"><h3>Logs</h3><pre>{pythonRun.stdout || "stdout empty"}</pre><pre>{pythonRun.stderr || "stderr empty"}</pre></div>
+              <details className="input-preview"><summary>Input preview</summary><pre>{JSON.stringify(pythonContext, null, 2)}</pre></details>
+            </section>
+          )}
+
+          <div className="provenance-box">
+            <h3>Pin to paper route</h3>
+            {paperQuote ? <><p>Selected TypeScript gates passed; this mapped observation can become a normalized paper quote. No order is sent.</p><code>{paperQuote.provenance.venueId} | {paperQuote.provenance.externalMarketId} | {paperQuote.provenance.mappingId}</code></> : <p>Unavailable: {paperEligibility?.reasons.join("; ") ?? "select an observation first"}.</p>}
+          </div>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="mini-metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function BuiltInDuel({
+  duelRecipeId,
+  recipes,
+  setDuelRecipeId,
+  duel,
+}: {
+  duelRecipeId: string;
+  recipes: StrategyRecipe[];
+  setDuelRecipeId: (value: string) => void;
+  duel: ReturnType<typeof duelRecipes> | null;
+}) {
+  return (
+    <div className="duel-box">
+      <h3>Strategy Duel</h3>
+      <select value={duelRecipeId} onChange={(event) => setDuelRecipeId(event.target.value)}>{recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.label}</option>)}</select>
+      {duel ? <><p>{duel.summary}</p><div className="duel-results"><span>{duel.left.recipeLabel}: {duel.left.verdict}</span><span>{duel.right.recipeLabel}: {duel.right.verdict}</span></div></> : null}
+    </div>
+  );
+}
+
+function isSavedPythonScript(value: unknown): value is SavedPythonScript {
+  return typeof value === "object" && value !== null && "id" in value && "name" in value && "source" in value;
+}
+
+function promptForText(message: string, defaultValue: string, unsupportedFallback: string | null): string | null {
+  try {
+    return window.prompt(message, defaultValue);
+  } catch {
+    return unsupportedFallback;
+  }
+}
+
+function keyFor(observation: { venueId: string; externalMarketId: string; externalOutcomeId: string }): string {
+  return `${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`;
+}
+
+function fmtProb(value: number | null): string {
+  return value === null ? "-" : `${(value * 100).toFixed(1)}%`;
+}
+
+function fmtSignedProb(value: number | null): string {
+  return value === null ? "-" : `${value >= 0 ? "+" : ""}${fmtProb(value)}`;
+}
+
+function fmtSize(value: number): string {
+  return value >= 1000 ? value.toFixed(0) : value.toFixed(value >= 10 ? 1 : 2);
+}
+
+function fmtAge(observedAt: string, baseAt: string): string {
+  const minutes = Math.max(0, Math.round((Date.parse(baseAt) - Date.parse(observedAt)) / 60_000));
+  return minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 60)}h`;
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import replayCapture from "../test-fixtures/replay/france-spain-18237038.json";
 import type { Fixture, MarketSnapshot, OutcomeQuote } from "../src/lib/domain";
@@ -104,6 +105,7 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
         <div className="receipt">
           <span>TxLINE snapshot</span>
           <strong>{formatTimestamp(market.capturedAt)}</strong>
+          <Link href="/radar">Open Radar</Link>
         </div>
       </section>
 
