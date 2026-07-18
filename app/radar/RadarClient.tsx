@@ -114,6 +114,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const recipes = useMemo(() => [...BUILT_IN_RECIPES, customRecipe], [customRecipe]);
   const selectedRecipe = recipes.find((recipe) => recipe.id === selectedRecipeId) ?? recipes[0];
   const duelRecipe = recipes.find((recipe) => recipe.id === duelRecipeId) ?? recipes[1];
+  const evaluationNow = Date.parse(snapshot.observedAt);
   const categories = useMemo(
     () => Array.from(new Set(snapshot.observations.map((item) => item.category ?? item.sport ?? "Uncategorized"))).sort(),
     [snapshot.observations],
@@ -123,17 +124,18 @@ export default function RadarClient({ initialSnapshot }: Props) {
       snapshot.observations
         .map((observation) => ({
           observation,
-          score: scoreObservation({ observation, observations: snapshot.observations, userBeliefs }),
+          score: scoreObservation({ observation, observations: snapshot.observations, userBeliefs, now: evaluationNow }),
           evaluation: evaluateRecipe({
             recipe: selectedRecipe,
             observation,
             observations: snapshot.observations,
             userBeliefs,
             txlineReference: TXLINE_REFERENCE,
+            now: evaluationNow,
           }),
         }))
         .sort((left, right) => right.score.total - left.score.total),
-    [selectedRecipe, snapshot.observations, userBeliefs],
+    [evaluationNow, selectedRecipe, snapshot.observations, userBeliefs],
   );
   const filtered = ranked.filter(({ observation }) => {
     const haystack = `${observation.title} ${observation.outcomeLabel} ${observation.venueLabel}`.toLowerCase();
@@ -155,6 +157,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
         observations: snapshot.observations,
         userBeliefs,
         txlineReference: TXLINE_REFERENCE,
+        now: evaluationNow,
       })
     : null;
   const threshold = selected && selectedEvaluation
@@ -172,6 +175,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
         observations: snapshot.observations,
         userBeliefs,
         txlineReference: TXLINE_REFERENCE,
+        now: evaluationNow,
       })
     : null;
   const paperQuote = selected ? buildMappedObservationPaperQuote({ observation: selected.observation }) : null;

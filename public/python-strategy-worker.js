@@ -11,14 +11,16 @@ self.onmessage = async (event) => {
   const startedAt = performance.now();
   let stdout = "";
   let stderr = "";
+  let runtimeVersion = null;
 
   try {
     const pyodide = await getPyodide();
+    runtimeVersion = pyodide.version;
     blockRuntimeNetwork();
     pyodide.setStdout({ batched: (text) => { stdout = appendBounded(stdout, text); } });
     pyodide.setStderr({ batched: (text) => { stderr = appendBounded(stderr, text); } });
-    self.postMessage({ type: "started", runtimeVersion: pyodide.version });
-    pyodide.globals.set("__match_horizon_context", event.data.context);
+    self.postMessage({ type: "started", runtimeVersion });
+    pyodide.globals.set("__match_horizon_context", pyodide.toPy(event.data.context));
     pyodide.runPython(event.data.source);
     const resultJson = pyodide.runPython(`
 import json
@@ -37,7 +39,7 @@ json.dumps(__match_horizon_result)
       stdout,
       stderr,
       elapsedMs: Math.round(performance.now() - startedAt),
-      runtimeVersion: pyodide.version,
+      runtimeVersion,
     });
   } catch (error) {
     self.postMessage({
@@ -46,7 +48,7 @@ json.dumps(__match_horizon_result)
       stdout,
       stderr,
       elapsedMs: Math.round(performance.now() - startedAt),
-      runtimeVersion: null,
+      runtimeVersion,
     });
   }
 };
