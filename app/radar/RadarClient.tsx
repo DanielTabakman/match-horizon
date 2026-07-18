@@ -38,6 +38,22 @@ type PythonRunState =
   | { status: "error"; result: null; stdout: string; stderr: string; error: string; elapsedMs: number | null; runtimeVersion: string | null };
 
 const routeLabels = { "context-only": "Context only", mapped: "Mapped", "paper-executable": "Paper executable" };
+const recipeDescriptions: Record<string, string> = {
+  "stale-market": "Compares an exact mapping against the captured TxLINE reference and freshness gates.",
+  "consensus-outlier": "Looks for a venue price that differs from peer mapped observations.",
+  "liquidity-sweep": "Checks whether your belief clears the ask with enough top-of-book depth.",
+  "belief-confirmation": "Requires both your belief and peer consensus to point above the venue price.",
+  "contrarian-tail": "Highlights low-probability outcomes with enough liquidity for paper analysis.",
+  custom: "Uses your locally edited thresholds and sizing rules.",
+};
+const pythonSampleDescriptions: Record<string, string> = {
+  "stale-market-detector": "Minimal TxLINE-reference check for one selected mapped observation.",
+  "liquidity-adjusted-edge": "Adjusts user-belief edge for spread and top-of-book depth.",
+  "consensus-outlier": "Compares the selected market to peer mapped observations.",
+  "contrarian-tail": "Scores low-probability outcomes while respecting mapping limits.",
+  "custom-interestingness-score": "Ranks observations with a simple informational score.",
+  "minimal-hello-strategy": "Tiny smoke test that returns a context-only result.",
+};
 const PYTHON_SCRIPT_STORAGE_KEY = "match-horizon:python-strategy-scripts";
 const DEFAULT_PYTHON_RUN_STATE: PythonRunState = {
   status: "idle",
@@ -159,6 +175,8 @@ export default function RadarClient({ initialSnapshot }: Props) {
       liquidity >= Number(minimumLiquidity || 0)
     );
   });
+  const hasActiveFilters =
+    venue !== "all" || status !== "all" || category !== "all" || text.trim() !== "" || Number(minimumLiquidity || 0) > 0;
   const selected = filtered.find(({ observation }) => keyFor(observation) === selectedKey) ?? filtered[0] ?? null;
   const selectedEvaluation = selected?.evaluation ?? null;
   const threshold = selected && selectedEvaluation
@@ -201,6 +219,14 @@ export default function RadarClient({ initialSnapshot }: Props) {
     } finally {
       setIsRefreshing(false);
     }
+  }
+
+  function clearFilters() {
+    setVenue("all");
+    setStatus("all");
+    setCategory("all");
+    setText("");
+    setMinimumLiquidity("0");
   }
 
   function updateBelief(value: string) {
@@ -376,17 +402,25 @@ export default function RadarClient({ initialSnapshot }: Props) {
       <section className="radar-topbar">
         <div>
           <p className="eyebrow">Market Radar</p>
-          <h1>Read-only external market intelligence</h1>
+          <h1>Read-only market radar</h1>
           <p className="muted">
-            Live connector observations, explicit mappings, transparent scoring, and paper-only strategy recipes.
+            Live SX Bet and Polymarket observations are separate from the captured TxLINE fixture unless an explicit
+            mapping connects them.
           </p>
         </div>
         <div className="radar-actions">
-          <Link href="/">Judge flow</Link>
+          <Link href="/">Fixture demo</Link>
           <button type="button" onClick={refresh} disabled={isRefreshing}>
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
+      </section>
+
+      <section className="radar-summary-strip" aria-label="Radar summary">
+        <Metric label="Imported observations" value={snapshot.observations.length.toString()} />
+        <Metric label="Visible results" value={filtered.length.toString()} />
+        <Metric label="Source status" value={summarizeHealth(snapshot.health)} />
+        <Metric label="Snapshot time" value={formatTimestamp(snapshot.observedAt)} />
       </section>
 
       <section className="health-grid" aria-label="Source health">
@@ -401,27 +435,52 @@ export default function RadarClient({ initialSnapshot }: Props) {
       </section>
 
       <section className="radar-filters" aria-label="Radar filters">
-        <select value={venue} onChange={(event) => setVenue(event.target.value)} aria-label="Venue filter">
-          <option value="all">All venues</option>
-          <option value="sx-bet">SX Bet</option>
-          <option value="polymarket">Polymarket</option>
-        </select>
-        <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category filter">
-          <option value="all">All sports/categories</option>
-          {categories.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-        <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Mapping state filter">
-          <option value="all">All mapping states</option>
-          <option value="context-only">Context only</option>
-          <option value="mapped">Mapped</option>
-          <option value="paper-executable">Paper executable</option>
-        </select>
-        <input aria-label="Search observations" placeholder="Search title, outcome, venue" value={text} onChange={(event) => setText(event.target.value)} />
-        <input aria-label="Minimum liquidity" inputMode="decimal" min="0" type="number" value={minimumLiquidity} onChange={(event) => setMinimumLiquidity(event.target.value)} />
+        <label>
+          <span>Venue</span>
+          <select value={venue} onChange={(event) => setVenue(event.target.value)} aria-label="Venue filter">
+            <option value="all">All venues</option>
+            <option value="sx-bet">SX Bet</option>
+            <option value="polymarket">Polymarket</option>
+          </select>
+        </label>
+        <label>
+          <span>Category</span>
+          <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category filter">
+            <option value="all">All sports/categories</option>
+            {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Route state</span>
+          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Mapping state filter">
+            <option value="all">All mapping states</option>
+            <option value="context-only">Context only</option>
+            <option value="mapped">Mapped</option>
+            <option value="paper-executable">Paper executable</option>
+          </select>
+        </label>
+        <label className="filter-search">
+          <span>Search</span>
+          <input aria-label="Search observations" placeholder="Title, outcome, venue" value={text} onChange={(event) => setText(event.target.value)} />
+        </label>
+        <label>
+          <span>Min depth</span>
+          <input aria-label="Minimum liquidity" inputMode="decimal" min="0" type="number" value={minimumLiquidity} onChange={(event) => setMinimumLiquidity(event.target.value)} />
+        </label>
+        <button type="button" className="button-ghost" onClick={clearFilters} disabled={!hasActiveFilters}>
+          Clear filters
+        </button>
       </section>
 
       <section className="radar-layout">
         <div className="radar-cards" aria-label="Ranked market observations">
+          {filtered.length === 0 ? (
+            <div className="empty-state">
+              <h2>No markets match these filters</h2>
+              <p>Clear filters to recover the imported Radar observations.</p>
+              <button type="button" className="button-primary" onClick={clearFilters}>Clear filters</button>
+            </div>
+          ) : null}
           {filtered.slice(0, 30).map(({ effectiveRouteState, observation, score, evaluation }) => (
             <button
               type="button"
@@ -434,13 +493,10 @@ export default function RadarClient({ initialSnapshot }: Props) {
               <p>{observation.outcomeLabel}</p>
               <div className="tag-row"><span>{routeLabels[effectiveRouteState]}</span><span>{evaluation.verdict.replace("-", " ")}</span></div>
               <div className="metrics-row">
-                <Metric label="Prob" value={fmtProb(observation.midpointProbability ?? observation.bestAskProbability)} />
+                <Metric label="Best ask" value={fmtProb(observation.bestAskProbability ?? observation.midpointProbability)} />
                 <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />
                 <Metric label="Depth" value={fmtSize(Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0))} />
                 <Metric label="Age" value={fmtAge(observation.observedAt, snapshot.observedAt)} />
-              </div>
-              <div className="score-bars">
-                {Object.entries(score.breakdown).map(([label, value]) => <span key={label}>{label}: {value.toFixed(2)}</span>)}
               </div>
             </button>
           ))}
@@ -448,6 +504,11 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
         <aside className="strategy-panel" aria-label="Strategy Lab">
           <div className="panel-heading"><div><h2>Strategy Lab</h2><span>{selected ? selected.observation.outcomeLabel : "No observation selected"}</span></div></div>
+          {selected ? (
+            <SelectedMarketSummary selected={selected} observedAt={snapshot.observedAt} />
+          ) : (
+            <div className="empty-state compact"><p>Select a market after clearing or changing filters.</p></div>
+          )}
           <div className="lab-tabs" role="tablist" aria-label="Strategy Lab mode">
             <button type="button" className={labTab === "built-in" ? "active" : ""} onClick={() => setLabTab("built-in")}>Built-in</button>
             <button type="button" className={labTab === "python" ? "active" : ""} onClick={() => setLabTab("python")}>Python Strategy</button>
@@ -455,6 +516,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
           {labTab === "built-in" ? (
             <>
               <label><span>Recipe</span><select value={selectedRecipeId} onChange={(event) => setSelectedRecipeId(event.target.value)}>{recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.label}</option>)}</select></label>
+              <p className="radar-note">{describeRecipe(selectedRecipe)}</p>
               {selectedRecipeId === "custom" ? (
                 <div className="custom-recipe">
                   <label><span>Minimum edge (%)</span><input type="number" value={(customRecipe.minimumEdge * 100).toString()} onChange={(event) => setCustomRecipe({ ...customRecipe, minimumEdge: Number(event.target.value) / 100 })} /></label>
@@ -468,12 +530,27 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
               {selectedEvaluation ? (
                 <div className={`evaluation ${selectedEvaluation.verdict}`}>
-                  <strong>{selectedEvaluation.verdict.replace("-", " ")}</strong>
-                  {[...selectedEvaluation.acceptedReasons, ...selectedEvaluation.rejectedReasons, ...selectedEvaluation.contextOnlyReasons].map((reason) => <p key={reason}>{reason}</p>)}
-                  <Metric label="Reference" value={fmtProb(selectedEvaluation.referenceProbability)} />
-                  <Metric label="Edge" value={fmtSignedProb(selectedEvaluation.edge)} />
-                  <Metric label="Paper stake" value={selectedEvaluation.stake === null ? "-" : `$${selectedEvaluation.stake.toFixed(0)}`} />
+                  <div className="evaluation-summary">
+                    <strong>{selectedEvaluation.verdict.replace("-", " ")}</strong>
+                    <div className="metrics-row compact">
+                      <Metric label="Reference" value={fmtProb(selectedEvaluation.referenceProbability)} />
+                      <Metric label="Edge" value={fmtSignedProb(selectedEvaluation.edge)} />
+                      <Metric label="Paper stake" value={selectedEvaluation.stake === null ? "-" : `$${selectedEvaluation.stake.toFixed(0)}`} />
+                    </div>
+                  </div>
+                  <ReasonGroup title="Passed" reasons={selectedEvaluation.acceptedReasons} emptyText="No passing gates yet." />
+                  <ReasonGroup title="Blocked by" reasons={selectedEvaluation.rejectedReasons} emptyText="No blocking gates." />
+                  <ReasonGroup title="Context limitations" reasons={selectedEvaluation.contextOnlyReasons} emptyText="No context limitations." />
                 </div>
+              ) : null}
+
+              {selected ? (
+                <details className="score-detail">
+                  <summary>Why surfaced</summary>
+                  <div className="score-bars">
+                    {Object.entries(selected.score.breakdown).map(([label, value]) => <span key={label}>{formatBreakdownLabel(label)}: {value.toFixed(2)}</span>)}
+                  </div>
+                </details>
               ) : null}
 
               {threshold ? <div className="threshold-box"><h3>What would change my mind?</h3><p>{threshold.explanation}</p><Metric label="Current ask" value={fmtProb(threshold.currentAskProbability)} /><Metric label="Minimum odds" value={threshold.thresholdDecimalOdds === null ? "-" : threshold.thresholdDecimalOdds.toFixed(2)} /></div> : null}
@@ -483,36 +560,14 @@ export default function RadarClient({ initialSnapshot }: Props) {
           ) : (
             <section className="python-lab" aria-label="Python Strategy Lab">
               <p className="python-badge">Trusted local script — paper analysis only</p>
-              <p className="radar-note">Runs in a disposable Pyodide Web Worker with structured-cloned JSON. Browser worker isolation limits blast radius but is not a complete adversarial sandbox.</p>
+              <p className="radar-note">Runs locally in a disposable Pyodide Web Worker and returns advisory paper analysis only.</p>
               <label htmlFor="python-sample"><span>Editable sample</span></label>
               <select id="python-sample" value={pythonSampleId} onChange={(event) => loadPythonSample(event.target.value)}>{PYTHON_STRATEGY_SAMPLES.map((sample) => <option key={sample.id} value={sample.id}>{sample.label}</option>)}</select>
-              <div className="python-actions">
-                <button type="button" onClick={() => navigator.clipboard.writeText(pythonSource)}>Copy sample</button>
-                <button type="button" onClick={savePythonScript}>Save</button>
-                <button type="button" onClick={resetPythonLab}>Reset</button>
-              </div>
-              {savedPythonScripts.length > 0 ? (
-                <div className="saved-scripts">
-                  {savedPythonScripts.map((script) => (
-                    <div key={script.id}>
-                      <button type="button" onClick={() => loadSavedPythonScript(script.id)}>{script.name}</button>
-                      <button type="button" onClick={() => renameSavedPythonScript(script.id)}>Rename</button>
-                      <button type="button" onClick={() => deleteSavedPythonScript(script.id)}>Delete</button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <p className="radar-note">{pythonSampleDescriptions[pythonSampleId] ?? "Custom local script."}</p>
               <label htmlFor="python-source"><span>Python strategy code</span></label>
               <textarea id="python-source" value={pythonSource} onChange={(event) => setPythonSource(event.target.value)} spellCheck={false} />
-              <div className="python-run-grid">
-                <label htmlFor="python-run-mode"><span>Run against</span></label>
-                <select id="python-run-mode" value={pythonRunMode} onChange={(event) => setPythonRunMode(event.target.value as PythonStrategyRunMode)}><option value="selected-observation">Selected observation</option><option value="filtered-batch">Current filtered batch</option></select>
-                <label htmlFor="python-timeout"><span>Timeout ms</span></label>
-                <input id="python-timeout" type="number" min={500} max={PYTHON_STRATEGY_LIMITS.maximumTimeoutMs} step={500} value={pythonTimeoutMs} onChange={(event) => setPythonTimeoutMs(Math.min(PYTHON_STRATEGY_LIMITS.maximumTimeoutMs, Math.max(500, Number(event.target.value))))} />
-              </div>
               <div className="python-actions">
-                <button type="button" onClick={runPythonStrategy} disabled={pythonRun.status === "running"}>{pythonRun.status === "running" ? "Running..." : "Run"}</button>
-                <button type="button" onClick={() => stopPythonRun()} disabled={pythonRun.status !== "running"}>Stop</button>
+                <button className="button-primary" type="button" onClick={runPythonStrategy} disabled={pythonRun.status === "running"}>{pythonRun.status === "running" ? "Running..." : "Run strategy"}</button>
               </div>
               <div className={`evaluation ${pythonRun.result?.decision === "accept" ? "accepted" : pythonRun.result?.decision === "reject" ? "rejected" : pythonRun.status === "error" ? "rejected" : "context-only"}`}>
                 <strong>{pythonRun.status}</strong>
@@ -529,19 +584,50 @@ export default function RadarClient({ initialSnapshot }: Props) {
                 <Metric label="Timing" value={pythonRun.elapsedMs === null ? "-" : `${pythonRun.elapsedMs}ms`} />
                 <Metric label="Runtime" value={pythonRun.runtimeVersion ?? "not loaded"} />
               </div>
+              <details className="advanced-panel">
+                <summary>Advanced run settings</summary>
+                <div className="python-run-grid">
+                  <label htmlFor="python-run-mode"><span>Run against</span></label>
+                  <select id="python-run-mode" value={pythonRunMode} onChange={(event) => setPythonRunMode(event.target.value as PythonStrategyRunMode)}><option value="selected-observation">Selected observation</option><option value="filtered-batch">Current filtered batch</option></select>
+                  <label htmlFor="python-timeout"><span>Timeout ms</span></label>
+                  <input id="python-timeout" type="number" min={500} max={PYTHON_STRATEGY_LIMITS.maximumTimeoutMs} step={500} value={pythonTimeoutMs} onChange={(event) => setPythonTimeoutMs(Math.min(PYTHON_STRATEGY_LIMITS.maximumTimeoutMs, Math.max(500, Number(event.target.value))))} />
+                </div>
+                <div className="python-actions">
+                  <button type="button" onClick={() => stopPythonRun()} disabled={pythonRun.status !== "running"}>Stop</button>
+                  <button type="button" onClick={() => navigator.clipboard.writeText(pythonSource)}>Copy sample</button>
+                  <button type="button" onClick={resetPythonLab}>Reset</button>
+                </div>
+              </details>
+              <section className="saved-scripts-section">
+                <div className="panel-heading compact-heading">
+                  <h3>Saved locally</h3>
+                  <button type="button" className="button-secondary" onClick={savePythonScript}>Save locally</button>
+                </div>
+                {savedPythonScripts.length > 0 ? (
+                  <div className="saved-scripts">
+                    {savedPythonScripts.map((script) => (
+                      <div key={script.id}>
+                        <button type="button" onClick={() => loadSavedPythonScript(script.id)}>{script.name}</button>
+                        <button type="button" onClick={() => renameSavedPythonScript(script.id)}>Rename</button>
+                        <button type="button" onClick={() => deleteSavedPythonScript(script.id)}>Delete</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="radar-note">No saved local scripts yet.</p>}
+              </section>
               {pythonRun.result && selectedEvaluation ? (
                 <div className="duel-box">
                   <h3>Strategy Duel</h3>
                   <p>{selectedRecipe.label}: {selectedEvaluation.verdict} | Python: {pythonRun.result.decision}</p>
                 </div>
               ) : null}
-              <div className="python-logs"><h3>Logs</h3><pre>{pythonRun.stdout || "stdout empty"}</pre><pre>{pythonRun.stderr || "stderr empty"}</pre></div>
+              <details className="python-logs"><summary>Logs</summary><pre>{pythonRun.stdout || "stdout empty"}</pre><pre>{pythonRun.stderr || "stderr empty"}</pre></details>
               <details className="input-preview"><summary>Input preview</summary><pre>{JSON.stringify(pythonContext, null, 2)}</pre></details>
             </section>
           )}
 
           <div className="provenance-box">
-            <h3>Pin to paper route</h3>
+            <h3>Paper-route eligibility</h3>
             {paperQuote ? <><p>Selected TypeScript gates passed; this mapped observation can become a normalized paper quote. No order is sent.</p><code>{paperQuote.provenance.venueId} | {paperQuote.provenance.externalMarketId} | {paperQuote.provenance.mappingId}</code></> : <p>Unavailable: {paperEligibility?.reasons.join("; ") ?? "select an observation first"}.</p>}
           </div>
         </aside>
@@ -552,6 +638,70 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="mini-metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function SelectedMarketSummary({
+  selected,
+  observedAt,
+}: {
+  selected: {
+    observation: {
+      venueLabel: string;
+      title: string;
+      outcomeLabel: string;
+      bestAskProbability: number | null;
+      midpointProbability: number | null;
+      spreadProbability: number | null;
+      availableAskSize: number | null;
+      availableBidSize: number | null;
+      observedAt: string;
+      mapping: { id: string; equivalence: string; resolutionNotes: string } | null;
+    };
+    score: { total: number };
+    effectiveRouteState: keyof typeof routeLabels;
+  };
+  observedAt: string;
+}) {
+  const observation = selected.observation;
+  const depth = Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0);
+
+  return (
+    <section className="selected-market-summary" aria-label="Selected market summary">
+      <div>
+        <span className="eyebrow">{observation.venueLabel}</span>
+        <h3>{observation.title}</h3>
+        <p>{observation.outcomeLabel}</p>
+      </div>
+      <div className="metrics-row compact">
+        <Metric label="State" value={routeLabels[selected.effectiveRouteState]} />
+        <Metric label="Best ask" value={fmtProb(observation.bestAskProbability ?? observation.midpointProbability)} />
+        <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />
+        <Metric label="Depth" value={fmtSize(depth)} />
+        <Metric label="Age" value={fmtAge(observation.observedAt, observedAt)} />
+        <Metric label="Score" value={selected.score.total.toFixed(1)} />
+      </div>
+      <p className="radar-note">
+        {observation.mapping
+          ? `Mapping ${observation.mapping.id} is ${observation.mapping.equivalence}. ${observation.mapping.resolutionNotes}`
+          : "No mapping has been reviewed for this observation, so it can only provide context."}
+      </p>
+    </section>
+  );
+}
+
+function ReasonGroup({ title, reasons, emptyText }: { title: string; reasons: string[]; emptyText: string }) {
+  return (
+    <section className="reason-group">
+      <h3>{title}</h3>
+      {reasons.length > 0 ? (
+        <ul>
+          {reasons.map((reason) => <li key={reason}>{reason}</li>)}
+        </ul>
+      ) : (
+        <p>{emptyText}</p>
+      )}
+    </section>
+  );
 }
 
 function BuiltInDuel({
@@ -572,6 +722,20 @@ function BuiltInDuel({
       {duel ? <><p>{duel.summary}</p><div className="duel-results"><span>{duel.left.recipeLabel}: {duel.left.verdict}</span><span>{duel.right.recipeLabel}: {duel.right.verdict}</span></div></> : null}
     </div>
   );
+}
+
+function describeRecipe(recipe: StrategyRecipe): string {
+  return recipeDescriptions[recipe.id] ?? "Uses the selected recipe thresholds against the selected observation.";
+}
+
+function summarizeHealth(health: RadarSnapshot["health"]): string {
+  if (health.some((item) => item.status === "live")) {
+    return "Live sources";
+  }
+  if (health.some((item) => item.status === "fallback")) {
+    return "Fixture fallback";
+  }
+  return "Unavailable";
 }
 
 function isSavedPythonScript(value: unknown): value is SavedPythonScript {
@@ -605,6 +769,18 @@ function fmtSize(value: number): string {
 function fmtAge(observedAt: string, baseAt: string): string {
   const minutes = Math.max(0, Math.round((Date.parse(baseAt) - Date.parse(observedAt)) / 60_000));
   return minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 60)}h`;
+}
+
+function formatTimestamp(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
+
+function formatBreakdownLabel(value: string): string {
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (first) => first.toUpperCase());
 }
 
 function formatError(error: unknown): string {
