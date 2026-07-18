@@ -33,3 +33,15 @@ export function buildPaperPredictionMarketQuote({
 export function isValidPaperQuoteInput(decimalOdds: number, availableStake: number): boolean {
   return Number.isFinite(decimalOdds) && decimalOdds > 1 && Number.isFinite(availableStake) && availableStake > 0;
 }
+
+export function canBuildRouteWithPaperQuotePolicy({
+  baseCanBuild,
+  includePaperQuote,
+  paperQuoteIsValid,
+}: {
+  baseCanBuild: boolean;
+  includePaperQuote: boolean;
+  paperQuoteIsValid: boolean;
+}): boolean {
+  return baseCanBuild && (!includePaperQuote || paperQuoteIsValid);
+}

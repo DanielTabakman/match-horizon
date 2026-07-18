@@ -8,7 +8,7 @@ import {
   calculatePricingPolicy,
 } from "./pricing";
 import { buildExecutionRoute } from "./router";
-import { buildPaperPredictionMarketQuote } from "./paperQuote";
+import { buildPaperPredictionMarketQuote, canBuildRouteWithPaperQuotePolicy } from "./paperQuote";
 
 describe("required-edge pricing", () => {
   it("converts a 50% belief and 10% required edge into 2.20 minimum odds", () => {
@@ -234,5 +234,29 @@ describe("default pricing policy with the router", () => {
 
     expect(route.eligibleQuotes.map((quote) => quote.quoteId)).not.toContain("paper-external-quote");
     expect(route.fills.map((fill) => fill.quoteId)).not.toContain("paper-external-quote");
+  });
+
+  it("blocks route construction when enabled paper quote input is invalid", () => {
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: false,
+        paperQuoteIsValid: false,
+      }),
+    ).toBe(true);
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: true,
+        paperQuoteIsValid: true,
+      }),
+    ).toBe(true);
+    expect(
+      canBuildRouteWithPaperQuotePolicy({
+        baseCanBuild: true,
+        includePaperQuote: true,
+        paperQuoteIsValid: false,
+      }),
+    ).toBe(false);
   });
 });

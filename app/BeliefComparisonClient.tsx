@@ -27,7 +27,11 @@ import {
   type KellyMultiplier,
 } from "../src/lib/execution/pricing";
 import { buildExecutionRoute, type ExecutionRoute } from "../src/lib/execution/router";
-import { buildPaperPredictionMarketQuote, isValidPaperQuoteInput } from "../src/lib/execution/paperQuote";
+import {
+  buildPaperPredictionMarketQuote,
+  canBuildRouteWithPaperQuotePolicy,
+  isValidPaperQuoteInput,
+} from "../src/lib/execution/paperQuote";
 import { STRATEGY_PRESETS, strategyPresetValues, type StrategyPresetId } from "../src/lib/strategies/presets";
 
 export type SnapshotState =
@@ -304,13 +308,18 @@ function ExecutionAgentPanel({
           left.quoteId.localeCompare(right.quoteId),
       )
     : [];
-  const canBuild =
+  const baseCanBuild =
     strongestPositive !== null &&
     pricingPolicy !== null &&
     Number.isFinite(targetStake) &&
     targetStake > 0 &&
     (!useKellySizing || kellyPolicy !== null);
   const paperQuoteIsValid = isValidPaperQuoteInput(parsedPaperDecimalOdds, parsedPaperAvailableStake);
+  const canBuild = canBuildRouteWithPaperQuotePolicy({
+    baseCanBuild,
+    includePaperQuote,
+    paperQuoteIsValid,
+  });
 
   useEffect(() => {
     if (lastRouteKey.current === null) {
