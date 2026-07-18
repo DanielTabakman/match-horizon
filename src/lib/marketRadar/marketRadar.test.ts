@@ -9,6 +9,13 @@ import {
   evaluateRecipe,
   scoreObservation,
 } from "./strategyEngine";
+import {
+  PYTHON_STRATEGY_LIMITS,
+  buildPythonStrategyContext,
+  enforcePythonAdvisoryRouteGate,
+  validatePythonStrategyResult,
+  validatePythonStrategyRunInput,
+} from "./pythonStrategy";
 import { validateMapping, validateObservation } from "./validation";
 
 const now = Date.parse("2026-07-18T20:00:00.000Z");
@@ -63,6 +70,61 @@ describe("market radar contracts", () => {
         observedAt: "2026-07-18T19:59:00.000Z",
       },
     });
+  });
+});
+
+describe("python strategy contract", () => {
+  it("validates advisory Python results", () => {
+    expect(
+      validatePythonStrategyResult({
+        decision: "accept",
+        score: 12.5,
+        reasons: ["Edge cleared."],
+        metrics: { edge: 0.08, mapped: true, note: "paper-only", empty: null },
+        proposedMinimumOdds: 2.1,
+      }),
+    ).toMatchObject({ decision: "accept", score: 12.5 });
+  });
+
+  it("rejects invalid Python result schemas", () => {
+    expect(() =>
+      validatePythonStrategyResult({
+        decision: "buy",
+        score: 1,
+        reasons: ["bad"],
+        metrics: {},
+      }),
+    ).toThrow("decision");
+    expect(() =>
+      validatePythonStrategyResult({
+        decision: "reject",
+        score: 1,
+        reasons: "bad",
+        metrics: {},
+      }),
+    ).toThrow("reasons");
+  });
+
+  it("rejects oversized Python source and input", () => {
+    const context = buildPythonStrategyContext({
+      selectedObservation: exactMappedObservation(),
+      observations: [exactMappedObservation()],
+      selectedStrategyParameters: BUILT_IN_RECIPES[0],
+      runMode: "selected-observation",
+      now: "2026-07-18T20:00:00.000Z",
+    });
+    expect(() => validatePythonStrategyRunInput({ source: "x".repeat(PYTHON_STRATEGY_LIMITS.maximumSourceBytes + 1), context })).toThrow("64 KB");
+  });
+
+  it("keeps Python accept results advisory for non-exact mappings", () => {
+    const contextOnly = { ...observation(), mapping: null, routeState: "context-only" as const };
+    const result = enforcePythonAdvisoryRouteGate({
+      selectedObservation: contextOnly,
+      result: { decision: "accept", score: 99, reasons: ["Python likes it."], metrics: {}, proposedStake: 50 },
+    });
+    expect(result.decision).toBe("context-only");
+    expect(result.proposedStake).toBeNull();
+    expect(result.reasons.at(-1)).toContain("advisory");
   });
 });
 

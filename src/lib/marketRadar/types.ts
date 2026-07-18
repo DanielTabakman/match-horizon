@@ -135,3 +135,27 @@ export type ThresholdCalculation = {
 
 export type UserBeliefByMapping = Record<string, number>;
 export type TxlineReferenceByOutcome = Partial<Record<OutcomeQuote["outcomeId"], number>>;
+
+export type PythonStrategyDecision = "accept" | "reject" | "context-only";
+
+export type PythonStrategyResult = {
+  decision: PythonStrategyDecision;
+  score: number | null;
+  reasons: string[];
+  metrics: Record<string, number | string | boolean | null>;
+  proposedMinimumOdds?: number | null;
+  proposedStake?: number | null;
+};
+
+export type PythonStrategyRunMode = "selected-observation" | "filtered-batch";
+
+export type PythonStrategyContext = {
+  selectedObservation: ObservationWithMapping | null;
+  observations: ObservationWithMapping[];
+  selectedMapping: MarketMapping | null;
+  userProbability: number | null;
+  txlineReference: TxlineReferenceByOutcome;
+  selectedStrategyParameters: StrategyRecipe;
+  evaluationTimestamp: string;
+  runMode: PythonStrategyRunMode;
+};

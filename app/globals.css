@@ -645,7 +645,8 @@ button:disabled {
 .radar-filters input,
 .radar-filters select,
 .strategy-panel input,
-.strategy-panel select {
+.strategy-panel select,
+.strategy-panel textarea {
   background: #fffdf8;
   border: 1px solid #d7d4c9;
   border-radius: 8px;
@@ -856,6 +857,87 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.lab-tabs,
+.python-actions,
+.python-run-grid,
+.saved-scripts div {
+  display: grid;
+  gap: 8px;
+}
+
+.lab-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lab-tabs button.active {
+  background: #eaf1f4;
+  border-color: #255f6f;
+  color: #255f6f;
+}
+
+.python-lab {
+  display: grid;
+  gap: 12px;
+}
+
+.python-badge {
+  border: 1px solid #9a4b1d;
+  border-radius: 8px;
+  color: #9a4b1d;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.python-actions,
+.python-run-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.saved-scripts {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-scripts div {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.strategy-panel textarea {
+  font-family: "Courier New", monospace;
+  min-height: 300px;
+  resize: vertical;
+  white-space: pre;
+}
+
+.python-logs,
+.input-preview {
+  border: 1px solid #d7d4c9;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.python-logs h3,
+.input-preview summary {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.python-logs pre,
+.input-preview pre {
+  background: #f2f0e8;
+  border-radius: 8px;
+  color: #353a32;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 980px) {
   .radar-topbar,
   .radar-layout {
@@ -880,7 +962,14 @@ button:disabled {
 
 @media (max-width: 640px) {
   .metrics-row,
-  .score-bars {
+  .score-bars,
+  .python-actions,
+  .python-run-grid,
+  .saved-scripts div {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .saved-scripts div {
+    grid-template-columns: 1fr;
   }
 }
