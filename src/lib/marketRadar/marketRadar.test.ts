@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ExternalMarketObservation, MarketMapping, ObservationWithMapping } from "./types";
 import { mapObservation } from "./mappings";
-import { buildMappedObservationPaperQuote, evaluatePaperEligibility } from "./paperRoute";
+import { buildMappedObservationPaperQuote, effectiveObservationRouteState, evaluatePaperEligibility } from "./paperRoute";
 import {
   BUILT_IN_RECIPES,
   consensusProbability,
@@ -109,6 +109,63 @@ describe("market radar contracts", () => {
     expect(rejected.reasons).toContain("requires a fresh observation within the selected recipe age gate");
     expect(buildMappedObservationPaperQuote({ observation: stale, eligibility: rejected })).toBeNull();
   });
+
+  it("keeps exact mapped observations mapped until dynamic gates pass", () => {
+    const mapped = exactMappedObservation({ bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02 });
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[2],
+      observation: mapped,
+      observations: [mapped],
+      now,
+    });
+    const eligibility = evaluatePaperEligibility({ observation: mapped, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+    expect(effectiveObservationRouteState({ observation: mapped, eligibility })).toBe("mapped");
+  });
+
+  it("promotes exact mapped observations to paper executable only when dynamic gates pass", () => {
+    const mapped = exactMappedObservation({ bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02 });
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[2],
+      observation: mapped,
+      observations: [mapped],
+      userBeliefs: { "exact-map": 0.62 },
+      now,
+    });
+    const eligibility = evaluatePaperEligibility({ observation: mapped, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+    expect(effectiveObservationRouteState({ observation: mapped, eligibility })).toBe("paper-executable");
+  });
+
+  it("keeps stale exact mapped quotes mapped instead of paper executable", () => {
+    const stale = exactMappedObservation({ bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02, observedAt: "2026-07-18T19:00:00.000Z" });
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[2],
+      observation: stale,
+      observations: [stale],
+      userBeliefs: { "exact-map": 0.62 },
+      now,
+    });
+    const eligibility = evaluatePaperEligibility({ observation: stale, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+    expect(effectiveObservationRouteState({ observation: stale, eligibility })).toBe("mapped");
+  });
+
+  it("filters paper executable observations by dynamic eligibility", () => {
+    const eligible = exactMappedObservation({ externalMarketId: "eligible", bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02 });
+    const stale = exactMappedObservation({ externalMarketId: "stale", bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02, observedAt: "2026-07-18T19:00:00.000Z" });
+    const contextOnly = { ...observation({ externalMarketId: "context" }), mapping: null, routeState: "context-only" as const };
+    const observations = [eligible, stale, contextOnly];
+    const paperExecutable = observations.filter((item) => {
+      const evaluation = evaluateRecipe({
+        recipe: BUILT_IN_RECIPES[2],
+        observation: item,
+        observations,
+        userBeliefs: { "exact-map": 0.62 },
+        now,
+      });
+      const eligibility = evaluatePaperEligibility({ observation: item, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+      return effectiveObservationRouteState({ observation: item, eligibility }) === "paper-executable";
+    });
+    expect(paperExecutable.map((item) => item.externalMarketId)).toEqual(["eligible"]);
+  });
 });
 
 describe("connector adapter contracts", () => {
@@ -119,7 +176,7 @@ describe("connector adapter contracts", () => {
       bestBidProbability: 0.4,
       bestAskProbability: 0.45,
       availableBidSize: 135,
-      availableAskSize: 183.33,
+      availableAskSize: 122.73,
     });
     expect(spain.spreadProbability).toBeCloseTo(0.05);
     expect(field).toMatchObject({
@@ -127,9 +184,31 @@ describe("connector adapter contracts", () => {
       bestBidProbability: 0.55,
       bestAskProbability: 0.6,
       availableBidSize: 150,
-      availableAskSize: 90,
+      availableAskSize: 202.5,
     });
     expect(field.spreadProbability).toBeCloseTo(0.05);
+  });
+
+  it("uses maker-to-opposite-taker capacity rather than the reciprocal", () => {
+    const [takerSide] = normalizeSxBetMarket(
+      sxRawFixture.market,
+      [
+        {
+          marketHash: sxRawFixture.market.marketHash,
+          totalBetSize: "1000000000",
+          fillAmount: "0",
+          pendingFillAmount: "0",
+          percentageOdds: "20750000000000000000",
+          baseToken: "USDC",
+          isMakerBettingOutcomeOne: false,
+          orderStatus: "ACTIVE",
+        },
+      ],
+      "2026-07-18T20:00:00.000Z",
+    );
+    expect(takerSide.bestAskProbability).toBe(0.7925);
+    expect(takerSide.availableAskSize).toBe(3819.28);
+    expect(takerSide.availableAskSize).not.toBeCloseTo(261.83);
   });
 
   it("normalizes raw Polymarket CLOB share size into USD top-of-book notional", () => {
@@ -177,7 +256,7 @@ describe("connector adapter contracts", () => {
       0.44,
       polymarketRawFixture.book,
     );
-    expect(sx.availableAskSize).toBeCloseTo(183.33);
+    expect(sx.availableAskSize).toBeCloseTo(122.73);
     expect(polymarket.availableAskSize).toBeCloseTo(0.47 * 80);
   });
 

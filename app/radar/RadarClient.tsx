@@ -17,7 +17,7 @@ import {
   evaluateRecipe,
   scoreObservation,
 } from "../../src/lib/marketRadar/strategyEngine";
-import { buildMappedObservationPaperQuote, evaluatePaperEligibility } from "../../src/lib/marketRadar/paperRoute";
+import { buildMappedObservationPaperQuote, effectiveObservationRouteState, evaluatePaperEligibility } from "../../src/lib/marketRadar/paperRoute";
 import { PYTHON_STRATEGY_SAMPLES } from "../../src/lib/marketRadar/pythonSamples";
 import {
   PYTHON_STRATEGY_LIMITS,
@@ -126,44 +126,41 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const ranked = useMemo(
     () =>
       snapshot.observations
-        .map((observation) => ({
-          observation,
-          score: scoreObservation({ observation, observations: snapshot.observations, userBeliefs, now: evaluationNow }),
-          evaluation: evaluateRecipe({
+        .map((observation) => {
+          const evaluation = evaluateRecipe({
             recipe: selectedRecipe,
             observation,
             observations: snapshot.observations,
             userBeliefs,
             txlineReference: RADAR_TXLINE_REFERENCE,
             now: evaluationNow,
-          }),
-        }))
+          });
+          const eligibility = evaluatePaperEligibility({ observation, evaluation, recipe: selectedRecipe, now: evaluationNow });
+          return {
+            observation,
+            score: scoreObservation({ observation, observations: snapshot.observations, userBeliefs, now: evaluationNow }),
+            evaluation,
+            eligibility,
+            effectiveRouteState: effectiveObservationRouteState({ observation, eligibility }),
+          };
+        })
         .sort((left, right) => right.score.total - left.score.total),
     [evaluationNow, selectedRecipe, snapshot.observations, userBeliefs],
   );
-  const filtered = ranked.filter(({ observation }) => {
+  const filtered = ranked.filter(({ effectiveRouteState, observation }) => {
     const haystack = `${observation.title} ${observation.outcomeLabel} ${observation.venueLabel}`.toLowerCase();
     const liquidity = Math.max(observation.availableAskSize ?? 0, observation.availableBidSize ?? 0);
     const categoryLabel = observation.category ?? observation.sport ?? "Uncategorized";
     return (
       (venue === "all" || observation.venueId === venue) &&
-      (status === "all" || observation.routeState === status) &&
+      (status === "all" || effectiveRouteState === status) &&
       (category === "all" || categoryLabel === category) &&
       (!text || haystack.includes(text.toLowerCase())) &&
       liquidity >= Number(minimumLiquidity || 0)
     );
   });
   const selected = filtered.find(({ observation }) => keyFor(observation) === selectedKey) ?? filtered[0] ?? null;
-  const selectedEvaluation = selected
-    ? evaluateRecipe({
-        recipe: selectedRecipe,
-        observation: selected.observation,
-        observations: snapshot.observations,
-        userBeliefs,
-        txlineReference: RADAR_TXLINE_REFERENCE,
-        now: evaluationNow,
-      })
-    : null;
+  const selectedEvaluation = selected?.evaluation ?? null;
   const threshold = selected && selectedEvaluation
     ? calculateChangeMyMindThreshold({
         recipe: selectedRecipe,
@@ -182,9 +179,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
         now: evaluationNow,
       })
     : null;
-  const paperEligibility = selected
-    ? evaluatePaperEligibility({ observation: selected.observation, evaluation: selectedEvaluation, recipe: selectedRecipe, now: evaluationNow })
-    : null;
+  const paperEligibility = selected?.eligibility ?? null;
   const paperQuote = selected && paperEligibility
     ? buildMappedObservationPaperQuote({ observation: selected.observation, eligibility: paperEligibility })
     : null;
@@ -427,7 +422,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
       <section className="radar-layout">
         <div className="radar-cards" aria-label="Ranked market observations">
-          {filtered.slice(0, 30).map(({ observation, score, evaluation }) => (
+          {filtered.slice(0, 30).map(({ effectiveRouteState, observation, score, evaluation }) => (
             <button
               type="button"
               className={`radar-card ${selected && keyFor(selected.observation) === keyFor(observation) ? "selected" : ""}`}
@@ -437,7 +432,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
               <div className="card-line"><span>{observation.venueLabel}</span><strong>{score.total.toFixed(1)}</strong></div>
               <h2>{observation.title}</h2>
               <p>{observation.outcomeLabel}</p>
-              <div className="tag-row"><span>{routeLabels[observation.routeState]}</span><span>{evaluation.verdict.replace("-", " ")}</span></div>
+              <div className="tag-row"><span>{routeLabels[effectiveRouteState]}</span><span>{evaluation.verdict.replace("-", " ")}</span></div>
               <div className="metrics-row">
                 <Metric label="Prob" value={fmtProb(observation.midpointProbability ?? observation.bestAskProbability)} />
                 <Metric label="Spread" value={fmtProb(observation.spreadProbability)} />

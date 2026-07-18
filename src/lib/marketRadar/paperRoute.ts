@@ -1,5 +1,12 @@
 import type { OutcomeQuote } from "../domain";
-import type { ObservationWithMapping, PaperEligibilityResult, ProvenancedSimulatedQuote, StrategyEvaluation, StrategyRecipe } from "./types";
+import type {
+  ObservationRouteState,
+  ObservationWithMapping,
+  PaperEligibilityResult,
+  ProvenancedSimulatedQuote,
+  StrategyEvaluation,
+  StrategyRecipe,
+} from "./types";
 
 export function evaluatePaperEligibility({
   observation,
@@ -40,6 +47,19 @@ export function evaluatePaperEligibility({
   }
 
   return { eligible: reasons.length === 0, reasons };
+}
+
+export function effectiveObservationRouteState({
+  observation,
+  eligibility,
+}: {
+  observation: ObservationWithMapping;
+  eligibility: PaperEligibilityResult;
+}): ObservationRouteState {
+  if (eligibility.eligible) {
+    return "paper-executable";
+  }
+  return observation.mapping ? "mapped" : "context-only";
 }
 
 export function buildMappedObservationPaperQuote({

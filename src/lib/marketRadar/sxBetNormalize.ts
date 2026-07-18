@@ -86,7 +86,7 @@ function normalizeOutcome(
 
 function normalizeMakerBid(order: SxOrder): OrderSide | null {
   const probability = scaledBigIntToNumber(order.percentageOdds, PERCENTAGE_ODDS_SCALE);
-  const remainingMakerStake = remainingUsdc(order);
+  const remainingMakerStake = rawUsdcToNumber(remainingRawUsdc(order));
   if (probability === null || probability <= 0 || probability >= 1 || remainingMakerStake === null || remainingMakerStake <= 0) {
     return null;
   }
@@ -94,13 +94,25 @@ function normalizeMakerBid(order: SxOrder): OrderSide | null {
 }
 
 function normalizeTakerAsk(order: SxOrder): OrderSide | null {
+  const makerProbabilityRaw = parseBigInt(order.percentageOdds);
   const makerProbability = scaledBigIntToNumber(order.percentageOdds, PERCENTAGE_ODDS_SCALE);
-  const remainingMakerStake = remainingUsdc(order);
-  if (makerProbability === null || makerProbability <= 0 || makerProbability >= 1 || remainingMakerStake === null || remainingMakerStake <= 0) {
+  const remainingMakerRaw = remainingRawUsdc(order);
+  if (
+    makerProbabilityRaw === null ||
+    makerProbabilityRaw <= 0n ||
+    makerProbabilityRaw >= PERCENTAGE_ODDS_SCALE ||
+    makerProbability === null ||
+    remainingMakerRaw === null ||
+    remainingMakerRaw <= 0n
+  ) {
     return null;
   }
   const takerProbability = 1 - makerProbability;
-  const takerStake = remainingMakerStake * (makerProbability / takerProbability);
+  const remainingTakerRaw = (remainingMakerRaw * PERCENTAGE_ODDS_SCALE) / makerProbabilityRaw - remainingMakerRaw;
+  const takerStake = rawUsdcToNumber(remainingTakerRaw);
+  if (takerStake === null || takerStake <= 0) {
+    return null;
+  }
   return { probability: takerProbability, size: takerStake };
 }
 
@@ -118,7 +130,7 @@ function bestSide(sides: OrderSide[], kind: "bid" | "ask"): TopOfBook | null {
   };
 }
 
-function remainingUsdc(order: SxOrder): number | null {
+function remainingRawUsdc(order: SxOrder): bigint | null {
   const total = parseBigInt(order.totalBetSize);
   const filled = parseBigInt(order.fillAmount ?? "0");
   const pending = parseBigInt(order.pendingFillAmount ?? "0");
@@ -126,7 +138,11 @@ function remainingUsdc(order: SxOrder): number | null {
     return null;
   }
   const remaining = total - filled - pending;
-  return remaining > 0n ? Number(remaining) / Number(USDC_SCALE) : null;
+  return remaining > 0n ? remaining : null;
+}
+
+function rawUsdcToNumber(value: bigint | null): number | null {
+  return value === null ? null : Number(value) / Number(USDC_SCALE);
 }
 
 function scaledBigIntToNumber(value: string, scale: bigint): number | null {
