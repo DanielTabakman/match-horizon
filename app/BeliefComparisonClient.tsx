@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import replayCapture from "../test-fixtures/replay/france-spain-18237038.json";
 import type { Fixture, MarketSnapshot, OutcomeQuote } from "../src/lib/domain";
 import {
@@ -27,6 +27,8 @@ import {
   type KellyMultiplier,
 } from "../src/lib/execution/pricing";
 import { buildExecutionRoute, type ExecutionRoute } from "../src/lib/execution/router";
+import { buildPaperPredictionMarketQuote, isValidPaperQuoteInput } from "../src/lib/execution/paperQuote";
+import { STRATEGY_PRESETS, strategyPresetValues, type StrategyPresetId } from "../src/lib/strategies/presets";
 
 export type SnapshotState =
   | { status: "loading" }
@@ -230,11 +232,19 @@ function ExecutionAgentPanel({
   const [kellyMultiplier, setKellyMultiplier] = useState<KellyMultiplier>("half");
   const [useKellySizing, setUseKellySizing] = useState(true);
   const [manualStake, setManualStake] = useState("5000");
+  const [strategyPresetId, setStrategyPresetId] = useState<StrategyPresetId>("standard");
+  const [includePaperQuote, setIncludePaperQuote] = useState(false);
+  const [paperDecimalOdds, setPaperDecimalOdds] = useState("3.25");
+  const [paperAvailableStake, setPaperAvailableStake] = useState("1000");
+  const lastRouteKey = useRef<string | null>(null);
   const outcomeId = strongestPositive?.outcomeId ?? null;
   const userProbability = strongestPositive?.beliefProbability ?? null;
   const requiredEdge = Number(requiredEdgePercent) / 100;
   const parsedBankroll = Number(bankroll);
   const parsedManualStake = Number(manualStake);
+  const parsedPaperDecimalOdds = Number(paperDecimalOdds);
+  const parsedPaperAvailableStake = Number(paperAvailableStake);
+  const selectedPreset = STRATEGY_PRESETS[strategyPresetId];
   const pricingPolicy = useMemo(() => {
     if (userProbability === null) {
       return null;
@@ -267,6 +277,7 @@ function ExecutionAgentPanel({
     : null;
   const targetStake = useKellySizing ? kellyPolicy?.suggestedStake ?? Number.NaN : parsedManualStake;
   const routeKey = buildExecutionPlanKey({
+    strategyPresetId,
     outcomeId,
     userProbability,
     requiredEdgePercent,
@@ -274,9 +285,19 @@ function ExecutionAgentPanel({
     kellyMultiplier,
     sizingMode: useKellySizing ? "kelly" : "manual",
     manualStake,
+    includePaperQuote,
+    paperDecimalOdds,
+    paperAvailableStake,
   });
+  const paperQuote = buildPaperPredictionMarketQuote({
+    enabled: includePaperQuote,
+    outcomeId,
+    decimalOdds: parsedPaperDecimalOdds,
+    availableStake: parsedPaperAvailableStake,
+  });
+  const quoteBook = paperQuote ? [...DEMO_LIQUIDITY_BOOK, paperQuote] : DEMO_LIQUIDITY_BOOK;
   const outcomeQuotes = outcomeId
-    ? DEMO_LIQUIDITY_BOOK.filter((quote) => quote.outcomeId === outcomeId).sort(
+    ? quoteBook.filter((quote) => quote.outcomeId === outcomeId).sort(
         (left, right) =>
           right.decimalOdds - left.decimalOdds ||
           left.venueId.localeCompare(right.venueId) ||
@@ -289,9 +310,18 @@ function ExecutionAgentPanel({
     Number.isFinite(targetStake) &&
     targetStake > 0 &&
     (!useKellySizing || kellyPolicy !== null);
+  const paperQuoteIsValid = isValidPaperQuoteInput(parsedPaperDecimalOdds, parsedPaperAvailableStake);
 
   useEffect(() => {
-    onPlanChange(null);
+    if (lastRouteKey.current === null) {
+      lastRouteKey.current = routeKey;
+      return;
+    }
+
+    if (lastRouteKey.current !== routeKey) {
+      lastRouteKey.current = routeKey;
+      onPlanChange(null);
+    }
   }, [routeKey, onPlanChange]);
 
   function buildRoute() {
@@ -306,7 +336,7 @@ function ExecutionAgentPanel({
         minimumDecimalOdds: pricingPolicy.minimumDecimalOdds,
         userProbability: strongestPositive.beliefProbability,
       },
-      DEMO_LIQUIDITY_BOOK,
+      quoteBook,
     );
 
     onPlanChange({
@@ -319,6 +349,33 @@ function ExecutionAgentPanel({
       targetStake,
       route,
     });
+  }
+
+  function applyStrategyPreset(nextPresetId: StrategyPresetId) {
+    setStrategyPresetId(nextPresetId);
+    const presetValues = strategyPresetValues(nextPresetId);
+    if (!presetValues) {
+      return;
+    }
+
+    setRequiredEdgePercent(presetValues.requiredEdgePercent.toString());
+    setKellyMultiplier(presetValues.kellyMultiplier);
+    setUseKellySizing(presetValues.useKellySizing);
+  }
+
+  function setCustomRequiredEdge(value: string) {
+    setStrategyPresetId("custom");
+    setRequiredEdgePercent(value);
+  }
+
+  function setCustomKellyMultiplier(value: KellyMultiplier) {
+    setStrategyPresetId("custom");
+    setKellyMultiplier(value);
+  }
+
+  function setCustomUseKellySizing(value: boolean) {
+    setStrategyPresetId("custom");
+    setUseKellySizing(value);
   }
 
   return (
@@ -349,6 +406,18 @@ function ExecutionAgentPanel({
 
           <div className="execution-controls">
             <label>
+              <span>Strategy preset</span>
+              <select
+                aria-label="Strategy preset"
+                value={strategyPresetId}
+                onChange={(event) => applyStrategyPreset(event.target.value as StrategyPresetId)}
+              >
+                <option value="standard">Standard</option>
+                <option value="conservative">Conservative</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label>
               <span>Required edge (%)</span>
               <input
                 aria-label="Required edge percentage"
@@ -357,7 +426,7 @@ function ExecutionAgentPanel({
                 step="0.1"
                 type="number"
                 value={requiredEdgePercent}
-                onChange={(event) => setRequiredEdgePercent(event.target.value)}
+                onChange={(event) => setCustomRequiredEdge(event.target.value)}
               />
             </label>
             <label>
@@ -377,7 +446,7 @@ function ExecutionAgentPanel({
               <select
                 aria-label="Kelly fraction"
                 value={kellyMultiplier}
-                onChange={(event) => setKellyMultiplier(event.target.value as KellyMultiplier)}
+                onChange={(event) => setCustomKellyMultiplier(event.target.value as KellyMultiplier)}
               >
                 <option value="quarter">Quarter Kelly</option>
                 <option value="half">Half Kelly</option>
@@ -389,7 +458,7 @@ function ExecutionAgentPanel({
                 aria-label="Use Kelly sizing"
                 type="checkbox"
                 checked={useKellySizing}
-                onChange={(event) => setUseKellySizing(event.target.checked)}
+                onChange={(event) => setCustomUseKellySizing(event.target.checked)}
               />
               <span>Use Kelly sizing</span>
             </label>
@@ -411,6 +480,9 @@ function ExecutionAgentPanel({
               Build simulated route
             </button>
           </div>
+          <p className="execution-disclaimer">
+            {selectedPreset.description}
+          </p>
 
           <div className="execution-totals pricing-policy">
             <Metric label="Fair odds" value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"} />
@@ -436,6 +508,61 @@ function ExecutionAgentPanel({
             Required edge is the minimum expected return implied by your probability. Kelly sizing is an educational
             reference from your own belief, not a recommendation or guarantee.
           </p>
+
+          <div className="paper-quote-panel">
+            <label className="toggle-control">
+              <input
+                aria-label="Include paper prediction-market quote"
+                type="checkbox"
+                checked={includePaperQuote}
+                onChange={(event) => setIncludePaperQuote(event.target.checked)}
+              />
+              <span>Include paper prediction-market quote</span>
+            </label>
+            <div className="paper-quote-controls">
+              <label>
+                <span>Paper decimal odds</span>
+                <input
+                  aria-label="Paper prediction-market decimal odds"
+                  inputMode="decimal"
+                  min="1.01"
+                  step="0.01"
+                  type="number"
+                  value={paperDecimalOdds}
+                  onChange={(event) => setPaperDecimalOdds(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Paper available size</span>
+                <input
+                  aria-label="Paper prediction-market available size"
+                  inputMode="decimal"
+                  min="1"
+                  step="100"
+                  type="number"
+                  value={paperAvailableStake}
+                  onChange={(event) => setPaperAvailableStake(event.target.value)}
+                />
+              </label>
+            </div>
+            <p className="execution-disclaimer">
+              Manually entered paper data only. This is not a live market connection and cannot submit orders.
+            </p>
+            {includePaperQuote && !paperQuoteIsValid ? (
+              <p className="validation" role="alert">
+                Paper quote odds must be greater than 1 and available size must be greater than 0.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="coming-soon-panel">
+            <h3>Prediction-market connections &mdash; Coming soon</h3>
+            <p>
+              The paper quote uses the same normalized pricing and routing path planned for read-only
+              prediction-market connectors. Future connectors will require explicit market and resolution-rule mapping
+              before prices can be compared. No live market, wallet, or order submission is connected in this demo.
+            </p>
+          </div>
 
           <div className="execution-routing-grid">
             <div className="execution-table">
