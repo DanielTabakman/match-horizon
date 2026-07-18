@@ -16,6 +16,11 @@ export type ExternalMarketObservation = {
   bestAskProbability: number | null;
   midpointProbability: number | null;
   spreadProbability: number | null;
+  /**
+   * Executable top-of-book notional in USD/USDC at the displayed probability.
+   * SX Bet order stakes and Polymarket CLOB share sizes must be converted before
+   * populating these fields so strategy gates compare a common unit.
+   */
   availableBidSize: number | null;
   availableAskSize: number | null;
   lastTradeProbability: number | null;
@@ -45,6 +50,11 @@ export type ObservationRouteState = "context-only" | "mapped" | "paper-executabl
 export type ObservationWithMapping = ExternalMarketObservation & {
   mapping: MarketMapping | null;
   routeState: ObservationRouteState;
+};
+
+export type PaperEligibilityResult = {
+  eligible: boolean;
+  reasons: string[];
 };
 
 export type PaperRouteProvenance = {

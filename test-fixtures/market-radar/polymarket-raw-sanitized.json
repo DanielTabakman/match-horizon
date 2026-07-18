@@ -1,0 +1,40 @@
+{
+  "event": {
+    "slug": "sanitized-football-market",
+    "title": "Sanitized football market",
+    "category": "Sports",
+    "tags": [{ "label": "Soccer" }]
+  },
+  "market": {
+    "question": "Will Spain win the sanitized fixture?",
+    "conditionId": "0xsanitizedpolymarket",
+    "slug": "sanitized-football-market",
+    "description": "Sanitized public CLOB fixture.",
+    "outcomes": "[\"Yes\",\"No\"]",
+    "outcomePrices": "[\"0.44\",\"0.56\"]",
+    "active": true,
+    "closed": false,
+    "startDate": "2026-07-18T00:00:00.000Z",
+    "endDate": "2026-07-20T00:00:00.000Z",
+    "updatedAt": "2026-07-18T20:00:00.000Z",
+    "bestBid": 0.43,
+    "bestAsk": 0.47,
+    "spread": 0.04,
+    "lastTradePrice": 0.45,
+    "liquidityNum": 99999,
+    "clobTokenIds": "[\"yes-token\",\"no-token\"]",
+    "acceptingOrders": true
+  },
+  "book": {
+    "timestamp": "1784404800000",
+    "bids": [
+      { "price": "0.43", "size": "120" },
+      { "price": "0.42", "size": "200" }
+    ],
+    "asks": [
+      { "price": "0.47", "size": "80" },
+      { "price": "0.49", "size": "500" }
+    ],
+    "last_trade_price": "0.45"
+  }
+}

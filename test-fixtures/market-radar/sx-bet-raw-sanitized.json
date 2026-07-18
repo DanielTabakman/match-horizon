@@ -1,0 +1,55 @@
+{
+  "market": {
+    "status": "ACTIVE",
+    "marketHash": "0xsanitizedsxmarket",
+    "outcomeOneName": "Spain",
+    "outcomeTwoName": "Field",
+    "teamOneName": "Spain",
+    "teamTwoName": "The Field",
+    "gameTime": 1784721600,
+    "sportLabel": "Soccer",
+    "leagueLabel": "Outrights - World Cup"
+  },
+  "orders": [
+    {
+      "marketHash": "0xsanitizedsxmarket",
+      "totalBetSize": "100000000",
+      "fillAmount": "10000000",
+      "pendingFillAmount": "5000000",
+      "percentageOdds": "40000000000000000000",
+      "baseToken": "USDC",
+      "isMakerBettingOutcomeOne": true,
+      "orderStatus": "ACTIVE"
+    },
+    {
+      "marketHash": "0xsanitizedsxmarket",
+      "totalBetSize": "50000000",
+      "fillAmount": "0",
+      "pendingFillAmount": "0",
+      "percentageOdds": "40000000000000000000",
+      "baseToken": "USDC",
+      "isMakerBettingOutcomeOne": true,
+      "orderStatus": "ACTIVE"
+    },
+    {
+      "marketHash": "0xsanitizedsxmarket",
+      "totalBetSize": "200000000",
+      "fillAmount": "20000000",
+      "pendingFillAmount": "30000000",
+      "percentageOdds": "55000000000000000000",
+      "baseToken": "USDC",
+      "isMakerBettingOutcomeOne": false,
+      "orderStatus": "ACTIVE"
+    },
+    {
+      "marketHash": "0xsanitizedsxmarket",
+      "totalBetSize": "999000000",
+      "fillAmount": "0",
+      "pendingFillAmount": "0",
+      "percentageOdds": "35000000000000000000",
+      "baseToken": "USDC",
+      "isMakerBettingOutcomeOne": false,
+      "orderStatus": "CANCELLED"
+    }
+  ]
+}

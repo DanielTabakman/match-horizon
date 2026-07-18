@@ -17,7 +17,7 @@ import {
   evaluateRecipe,
   scoreObservation,
 } from "../../src/lib/marketRadar/strategyEngine";
-import { buildMappedObservationPaperQuote } from "../../src/lib/marketRadar/paperRoute";
+import { buildMappedObservationPaperQuote, evaluatePaperEligibility } from "../../src/lib/marketRadar/paperRoute";
 import { PYTHON_STRATEGY_SAMPLES } from "../../src/lib/marketRadar/pythonSamples";
 import {
   PYTHON_STRATEGY_LIMITS,
@@ -26,6 +26,7 @@ import {
   validatePythonStrategyResult,
   validatePythonStrategyRunInput,
 } from "../../src/lib/marketRadar/pythonStrategy";
+import { RADAR_TXLINE_REFERENCE } from "../../src/lib/marketRadar/txlineReference";
 
 type Props = { initialSnapshot: RadarSnapshot };
 type LabTab = "built-in" | "python";
@@ -36,7 +37,6 @@ type PythonRunState =
   | { status: "success"; result: PythonStrategyResult; stdout: string; stderr: string; error: null; elapsedMs: number; runtimeVersion: string | null }
   | { status: "error"; result: null; stdout: string; stderr: string; error: string; elapsedMs: number | null; runtimeVersion: string | null };
 
-const TXLINE_REFERENCE = { participant_1: 0.317, draw: 0.276, participant_2: 0.407 };
 const routeLabels = { "context-only": "Context only", mapped: "Mapped", "paper-executable": "Paper executable" };
 const PYTHON_SCRIPT_STORAGE_KEY = "match-horizon:python-strategy-scripts";
 const DEFAULT_PYTHON_RUN_STATE: PythonRunState = {
@@ -61,44 +61,48 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const [duelRecipeId, setDuelRecipeId] = useState("liquidity-sweep");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [userBeliefs, setUserBeliefs] = useState<UserBeliefByMapping>({});
-  const [customRecipe, setCustomRecipe] = useState<StrategyRecipe>(() => {
-    if (typeof window === "undefined") return DEFAULT_CUSTOM_RECIPE;
-    const saved = window.localStorage.getItem("match-horizon:radar-custom-recipe");
-    if (!saved) return DEFAULT_CUSTOM_RECIPE;
-    try {
-      return { ...DEFAULT_CUSTOM_RECIPE, ...JSON.parse(saved) };
-    } catch {
-      window.localStorage.removeItem("match-horizon:radar-custom-recipe");
-      return DEFAULT_CUSTOM_RECIPE;
-    }
-  });
+  const [customRecipe, setCustomRecipe] = useState<StrategyRecipe>(DEFAULT_CUSTOM_RECIPE);
   const [pythonSampleId, setPythonSampleId] = useState(PYTHON_STRATEGY_SAMPLES[0].id);
   const [pythonSource, setPythonSource] = useState(PYTHON_STRATEGY_SAMPLES[0].source);
   const [pythonRunMode, setPythonRunMode] = useState<PythonStrategyRunMode>("selected-observation");
   const [pythonTimeoutMs, setPythonTimeoutMs] = useState(PYTHON_STRATEGY_LIMITS.defaultTimeoutMs);
-  const [savedPythonScripts, setSavedPythonScripts] = useState<SavedPythonScript[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(PYTHON_SCRIPT_STORAGE_KEY) ?? "[]") as unknown;
-      return Array.isArray(parsed)
-        ? parsed.filter((item): item is SavedPythonScript => isSavedPythonScript(item))
-        : [];
-    } catch {
-      window.localStorage.removeItem(PYTHON_SCRIPT_STORAGE_KEY);
-      return [];
-    }
-  });
+  const [savedPythonScripts, setSavedPythonScripts] = useState<SavedPythonScript[]>([]);
+  const [localStorageLoaded, setLocalStorageLoaded] = useState(false);
   const [pythonRun, setPythonRun] = useState<PythonRunState>(DEFAULT_PYTHON_RUN_STATE);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    window.localStorage.setItem("match-horizon:radar-custom-recipe", JSON.stringify(customRecipe));
-  }, [customRecipe]);
+    const loadSavedState = window.setTimeout(() => {
+      try {
+        const savedRecipe = window.localStorage.getItem("match-horizon:radar-custom-recipe");
+        if (savedRecipe) {
+          setCustomRecipe({ ...DEFAULT_CUSTOM_RECIPE, ...JSON.parse(savedRecipe) });
+        }
+      } catch {
+        window.localStorage.removeItem("match-horizon:radar-custom-recipe");
+      }
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(PYTHON_SCRIPT_STORAGE_KEY) ?? "[]") as unknown;
+        setSavedPythonScripts(Array.isArray(parsed) ? parsed.filter((item): item is SavedPythonScript => isSavedPythonScript(item)) : []);
+      } catch {
+        window.localStorage.removeItem(PYTHON_SCRIPT_STORAGE_KEY);
+      }
+      setLocalStorageLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(loadSavedState);
+  }, []);
   useEffect(() => {
-    window.localStorage.setItem(PYTHON_SCRIPT_STORAGE_KEY, JSON.stringify(savedPythonScripts));
-  }, [savedPythonScripts]);
+    if (localStorageLoaded) {
+      window.localStorage.setItem("match-horizon:radar-custom-recipe", JSON.stringify(customRecipe));
+    }
+  }, [customRecipe, localStorageLoaded]);
+  useEffect(() => {
+    if (localStorageLoaded) {
+      window.localStorage.setItem(PYTHON_SCRIPT_STORAGE_KEY, JSON.stringify(savedPythonScripts));
+    }
+  }, [savedPythonScripts, localStorageLoaded]);
   useEffect(
     () => () => {
       if (timeoutRef.current) {
@@ -130,7 +134,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
             observation,
             observations: snapshot.observations,
             userBeliefs,
-            txlineReference: TXLINE_REFERENCE,
+            txlineReference: RADAR_TXLINE_REFERENCE,
             now: evaluationNow,
           }),
         }))
@@ -156,7 +160,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
         observation: selected.observation,
         observations: snapshot.observations,
         userBeliefs,
-        txlineReference: TXLINE_REFERENCE,
+        txlineReference: RADAR_TXLINE_REFERENCE,
         now: evaluationNow,
       })
     : null;
@@ -174,18 +178,24 @@ export default function RadarClient({ initialSnapshot }: Props) {
         observation: selected.observation,
         observations: snapshot.observations,
         userBeliefs,
-        txlineReference: TXLINE_REFERENCE,
+        txlineReference: RADAR_TXLINE_REFERENCE,
         now: evaluationNow,
       })
     : null;
-  const paperQuote = selected ? buildMappedObservationPaperQuote({ observation: selected.observation }) : null;
+  const paperEligibility = selected
+    ? evaluatePaperEligibility({ observation: selected.observation, evaluation: selectedEvaluation, recipe: selectedRecipe, now: evaluationNow })
+    : null;
+  const paperQuote = selected && paperEligibility
+    ? buildMappedObservationPaperQuote({ observation: selected.observation, eligibility: paperEligibility })
+    : null;
   const pythonContext = buildPythonStrategyContext({
     selectedObservation: selected?.observation ?? null,
     observations: filtered.map(({ observation }) => observation),
     userBeliefs,
-    txlineReference: TXLINE_REFERENCE,
+    txlineReference: RADAR_TXLINE_REFERENCE,
     selectedStrategyParameters: selectedRecipe,
     runMode: pythonRunMode,
+    now: snapshot.observedAt,
   });
 
   async function refresh() {
@@ -215,7 +225,8 @@ export default function RadarClient({ initialSnapshot }: Props) {
   }
 
   function savePythonScript() {
-    const name = window.prompt("Script name", PYTHON_STRATEGY_SAMPLES.find((item) => item.id === pythonSampleId)?.label ?? "Custom Strategy");
+    const fallbackName = PYTHON_STRATEGY_SAMPLES.find((item) => item.id === pythonSampleId)?.label ?? "Custom Strategy";
+    const name = promptForText("Script name", fallbackName, fallbackName);
     if (!name) return;
     setSavedPythonScripts((current) => [
       { id: `${Date.now()}`, name, source: pythonSource },
@@ -234,7 +245,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
   function renameSavedPythonScript(id: string) {
     const script = savedPythonScripts.find((item) => item.id === id);
     if (!script) return;
-    const name = window.prompt("New script name", script.name);
+    const name = promptForText("New script name", script.name, null);
     if (!name) return;
     setSavedPythonScripts((current) => current.map((item) => (item.id === id ? { ...item, name } : item)));
   }
@@ -536,7 +547,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
           <div className="provenance-box">
             <h3>Pin to paper route</h3>
-            {paperQuote ? <><p>Exact mapped observation can become a normalized paper quote. No order is sent.</p><code>{paperQuote.provenance.venueId} | {paperQuote.provenance.externalMarketId} | {paperQuote.provenance.mappingId}</code></> : <p>Unavailable: only exact mapped observations can enter the existing paper quote/router path.</p>}
+            {paperQuote ? <><p>Selected TypeScript gates passed; this mapped observation can become a normalized paper quote. No order is sent.</p><code>{paperQuote.provenance.venueId} | {paperQuote.provenance.externalMarketId} | {paperQuote.provenance.mappingId}</code></> : <p>Unavailable: {paperEligibility?.reasons.join("; ") ?? "select an observation first"}.</p>}
           </div>
         </aside>
       </section>
@@ -570,6 +581,14 @@ function BuiltInDuel({
 
 function isSavedPythonScript(value: unknown): value is SavedPythonScript {
   return typeof value === "object" && value !== null && "id" in value && "name" in value && "source" in value;
+}
+
+function promptForText(message: string, defaultValue: string, unsupportedFallback: string | null): string | null {
+  try {
+    return window.prompt(message, defaultValue);
+  } catch {
+    return unsupportedFallback;
+  }
 }
 
 function keyFor(observation: { venueId: string; externalMarketId: string; externalOutcomeId: string }): string {

@@ -25,7 +25,7 @@ export function mapObservation(observation: ExternalMarketObservation): Observat
         candidate.externalMarketId === observation.externalMarketId &&
         candidate.externalOutcomeId === observation.externalOutcomeId,
     ) ?? null;
-  const routeState = mapping?.equivalence === "exact" ? "paper-executable" : mapping ? "mapped" : "context-only";
+  const routeState = mapping ? "mapped" : "context-only";
   return { ...observation, mapping, routeState };
 }
 

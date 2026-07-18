@@ -11,7 +11,7 @@ import type {
 export const BUILT_IN_RECIPES: StrategyRecipe[] = [
   recipe("stale-market", "Stale Market", "txline", 0.08, 0.08, 5, 10, 0.08, "half-kelly", 1000, true),
   recipe("consensus-outlier", "Consensus Outlier", "cross-venue-consensus", 0.06, 0.12, 5, 30, 0.06, "fixed", 500, true),
-  recipe("liquidity-sweep", "Liquidity Sweep", "user-belief", 0.04, 0.15, 25, 30, null, "liquidity-fraction", 750, true),
+  recipe("liquidity-sweep", "Top-of-book Liquidity Gate", "user-belief", 0.04, 0.15, 25, 30, null, "liquidity-fraction", 750, true),
   recipe("belief-confirmation", "Belief Confirmation", "user-belief", 0.03, 0.18, 5, 60, null, "quarter-kelly", 500, true),
   recipe("contrarian-tail", "Contrarian Tail", "cross-venue-consensus", 0.02, 0.2, 5, 120, null, "fixed", 250, false),
 ];
@@ -263,12 +263,24 @@ function marketProbability(observation: ObservationWithMapping): number | null {
   return observation.midpointProbability ?? observation.bestAskProbability ?? observation.bestBidProbability ?? observation.lastTradeProbability;
 }
 
-function consensusProbability(observation: ObservationWithMapping, observations: ObservationWithMapping[]): number | null {
+export function auditedComparisonGroupId(observation: ObservationWithMapping): string | null {
+  const mapping = observation.mapping;
+  if (mapping?.equivalence !== "exact" || !mapping.txlineFixtureId || !mapping.txlineOutcomeId) {
+    return null;
+  }
+  return `${mapping.txlineFixtureId}:${mapping.txlineOutcomeId}`;
+}
+
+export function consensusProbability(observation: ObservationWithMapping, observations: ObservationWithMapping[]): number | null {
+  const groupId = auditedComparisonGroupId(observation);
+  if (!groupId) {
+    return null;
+  }
   const values = observations
     .filter(
       (candidate) =>
-        candidate.externalOutcomeId !== observation.externalOutcomeId &&
-        candidate.outcomeLabel.toLowerCase() === observation.outcomeLabel.toLowerCase(),
+        candidate.venueId !== observation.venueId &&
+        auditedComparisonGroupId(candidate) === groupId,
     )
     .map(marketProbability)
     .filter((value): value is number => value !== null)

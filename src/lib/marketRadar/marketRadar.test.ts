@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ExternalMarketObservation, MarketMapping, ObservationWithMapping } from "./types";
 import { mapObservation } from "./mappings";
-import { buildMappedObservationPaperQuote } from "./paperRoute";
+import { buildMappedObservationPaperQuote, evaluatePaperEligibility } from "./paperRoute";
 import {
   BUILT_IN_RECIPES,
+  consensusProbability,
   calculateChangeMyMindThreshold,
   duelRecipes,
   evaluateRecipe,
@@ -17,6 +18,11 @@ import {
   validatePythonStrategyRunInput,
 } from "./pythonStrategy";
 import { validateMapping, validateObservation } from "./validation";
+import { normalizeSxBetMarket } from "./sxBetNormalize";
+import { normalizePolymarketOutcome } from "./polymarketNormalize";
+import { RADAR_TXLINE_REFERENCE } from "./txlineReference";
+import sxRawFixture from "../../../test-fixtures/market-radar/sx-bet-raw-sanitized.json";
+import polymarketRawFixture from "../../../test-fixtures/market-radar/polymarket-raw-sanitized.json";
 
 const now = Date.parse("2026-07-18T20:00:00.000Z");
 
@@ -52,11 +58,28 @@ describe("market radar contracts", () => {
     );
     expect(mapped.routeState).toBe("mapped");
     expect(mapped.mapping?.equivalence).toBe("related");
-    expect(buildMappedObservationPaperQuote({ observation: mapped })).toBeNull();
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[0],
+      observation: mapped,
+      observations: [mapped],
+      txlineReference: { participant_2: 0.6 },
+      now,
+    });
+    const eligibility = evaluatePaperEligibility({ observation: mapped, evaluation, recipe: BUILT_IN_RECIPES[0], now });
+    expect(buildMappedObservationPaperQuote({ observation: mapped, eligibility })).toBeNull();
   });
 
-  it("allows only exact mapped observations into the paper quote path with provenance", () => {
-    const quote = buildMappedObservationPaperQuote({ observation: exactMappedObservation() });
+  it("allows only eligible exact mapped observations into the paper quote path with provenance", () => {
+    const mapped = exactMappedObservation({ bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02 });
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[2],
+      observation: mapped,
+      observations: [mapped],
+      userBeliefs: { "exact-map": 0.62 },
+      now,
+    });
+    const eligibility = evaluatePaperEligibility({ observation: mapped, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+    const quote = buildMappedObservationPaperQuote({ observation: mapped, eligibility });
     expect(quote).toMatchObject({
       quoteId: "external:test-venue:market-1:yes",
       outcomeId: "participant_2",
@@ -69,6 +92,100 @@ describe("market radar contracts", () => {
         mappingId: "exact-map",
         observedAt: "2026-07-18T19:59:00.000Z",
       },
+    });
+  });
+
+  it("rejects paper quotes until every dynamic eligibility gate passes", () => {
+    const stale = exactMappedObservation({ bestAskProbability: 0.5, availableAskSize: 100, spreadProbability: 0.02, observedAt: "2026-07-18T19:00:00.000Z" });
+    const evaluation = evaluateRecipe({
+      recipe: BUILT_IN_RECIPES[2],
+      observation: stale,
+      observations: [stale],
+      userBeliefs: { "exact-map": 0.62 },
+      now,
+    });
+    const rejected = evaluatePaperEligibility({ observation: stale, evaluation, recipe: BUILT_IN_RECIPES[2], now });
+    expect(rejected.eligible).toBe(false);
+    expect(rejected.reasons).toContain("requires a fresh observation within the selected recipe age gate");
+    expect(buildMappedObservationPaperQuote({ observation: stale, eligibility: rejected })).toBeNull();
+  });
+});
+
+describe("connector adapter contracts", () => {
+  it("normalizes raw SX Bet orders with maker/taker orientation and USDC notional depth", () => {
+    const [spain, field] = normalizeSxBetMarket(sxRawFixture.market, sxRawFixture.orders, "2026-07-18T20:00:00.000Z");
+    expect(spain).toMatchObject({
+      outcomeLabel: "Spain",
+      bestBidProbability: 0.4,
+      bestAskProbability: 0.45,
+      availableBidSize: 135,
+      availableAskSize: 183.33,
+    });
+    expect(spain.spreadProbability).toBeCloseTo(0.05);
+    expect(field).toMatchObject({
+      outcomeLabel: "Field",
+      bestBidProbability: 0.55,
+      bestAskProbability: 0.6,
+      availableBidSize: 150,
+      availableAskSize: 90,
+    });
+    expect(field.spreadProbability).toBeCloseTo(0.05);
+  });
+
+  it("normalizes raw Polymarket CLOB share size into USD top-of-book notional", () => {
+    const normalized = normalizePolymarketOutcome(
+      polymarketRawFixture.event,
+      polymarketRawFixture.market,
+      "yes-token",
+      "Yes",
+      0.44,
+      polymarketRawFixture.book,
+    );
+    expect(normalized).toMatchObject({
+      bestBidProbability: 0.43,
+      bestAskProbability: 0.47,
+      availableBidSize: 51.6,
+      availableAskSize: 37.6,
+      observedAt: "2026-07-18T20:00:00.000Z",
+    });
+    expect(normalized.midpointProbability).toBeCloseTo(0.45);
+    expect(normalized.spreadProbability).toBeCloseTo(0.04);
+  });
+
+  it("does not treat Gamma liquidityNum as CLOB top-of-book depth when the book is missing", () => {
+    const normalized = normalizePolymarketOutcome(
+      polymarketRawFixture.event,
+      polymarketRawFixture.market,
+      "yes-token",
+      "Yes",
+      0.44,
+      null,
+    );
+    expect(normalized.availableBidSize).toBeNull();
+    expect(normalized.availableAskSize).toBeNull();
+    expect(normalized.bestBidProbability).toBe(0.43);
+    expect(normalized.bestAskProbability).toBe(0.47);
+  });
+
+  it("documents a common executable USD/USDC notional unit across connectors", () => {
+    const [sx] = normalizeSxBetMarket(sxRawFixture.market, sxRawFixture.orders, "2026-07-18T20:00:00.000Z");
+    const polymarket = normalizePolymarketOutcome(
+      polymarketRawFixture.event,
+      polymarketRawFixture.market,
+      "yes-token",
+      "Yes",
+      0.44,
+      polymarketRawFixture.book,
+    );
+    expect(sx.availableAskSize).toBeCloseTo(183.33);
+    expect(polymarket.availableAskSize).toBeCloseTo(0.47 * 80);
+  });
+
+  it("uses the committed TxLINE replay market reference", () => {
+    expect(RADAR_TXLINE_REFERENCE).toMatchObject({
+      participant_1: 0.37272,
+      draw: 0.31837,
+      participant_2: 0.30893,
     });
   });
 });
@@ -138,6 +255,36 @@ describe("interestingness and strategy recipes", () => {
     });
     expect(score.total).toBeGreaterThan(50);
     expect(score.breakdown.resolutionRiskPenalty).toBe(0);
+  });
+
+  it("returns null consensus for unrelated Yes markets", () => {
+    const first = exactMappedObservation({
+      venueId: "venue-a",
+      externalMarketId: "market-a",
+      externalOutcomeId: "yes",
+      outcomeLabel: "Yes",
+    });
+    const unrelated = exactMappedObservation({
+      venueId: "venue-b",
+      externalMarketId: "market-b",
+      externalOutcomeId: "yes",
+      outcomeLabel: "Yes",
+      midpointProbability: 0.8,
+    });
+    unrelated.mapping = {
+      ...unrelated.mapping!,
+      id: "unrelated-map",
+      txlineFixtureId: "different-fixture",
+      txlineOutcomeId: "participant_1",
+      externalMarketId: "market-b",
+    };
+    expect(consensusProbability(first, [first, unrelated])).toBeNull();
+  });
+
+  it("compares only different venues in the same audited group", () => {
+    const selected = exactMappedObservation({ venueId: "venue-a", externalMarketId: "market-a" });
+    const peer = peerObservation();
+    expect(consensusProbability(selected, [selected, peer])).toBeCloseTo(0.59);
   });
 
   it("evaluates the built-in recipes with explicit reasons", () => {
@@ -231,7 +378,7 @@ function exactMappedObservation(overrides: Partial<ExternalMarketObservation> = 
       resolutionNotes: "Audited same fixture result.",
       reviewedAt: "2026-07-18T00:00:00.000Z",
     },
-    routeState: "paper-executable",
+    routeState: "mapped",
   };
 }
 
@@ -247,7 +394,18 @@ function peerObservation(): ObservationWithMapping {
       midpointProbability: 0.59,
       spreadProbability: 0.02,
     }),
-    mapping: null,
-    routeState: "context-only",
+    mapping: {
+      id: "peer-exact-map",
+      txlineFixtureId: "18237038",
+      txlineOutcomeId: "participant_2",
+      venueId: "peer",
+      externalMarketId: "market-2",
+      externalOutcomeId: "yes",
+      normalizedOutcomeLabel: "Spain match result",
+      equivalence: "exact",
+      resolutionNotes: "Audited same fixture result.",
+      reviewedAt: "2026-07-18T00:00:00.000Z",
+    },
+    routeState: "mapped",
   };
 }
