@@ -23,8 +23,8 @@ export function evaluatePaperEligibility({
   const askDepth = observation.availableAskSize;
   const ageMs = Math.max(0, now - Date.parse(observation.observedAt));
 
-  if (observation.mapping?.equivalence !== "exact" || !observation.mapping.canonicalSelectionId) {
-    reasons.push("requires exact audited canonical mapping");
+  if (observation.mapping?.equivalence !== "settlement-exact" || !observation.mapping.canonicalSelectionId) {
+    reasons.push("requires settlement-exact audited canonical mapping");
   }
   if (ask === null || ask <= 0 || ask > 1) {
     reasons.push("requires a valid executable ask probability");
@@ -72,7 +72,7 @@ export function buildMappedObservationPaperQuote({
   availableStake?: number | null;
   sourceStatus?: "live" | "captured";
 }): ProvenancedGenericQuote | null {
-  if (!eligibility.eligible || observation.mapping?.equivalence !== "exact" || !observation.mapping.canonicalSelectionId) {
+  if (!eligibility.eligible || observation.mapping?.equivalence !== "settlement-exact" || !observation.mapping.canonicalSelectionId) {
     return null;
   }
 

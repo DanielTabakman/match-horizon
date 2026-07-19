@@ -881,6 +881,24 @@ button:disabled {
   gap: 8px;
 }
 
+.real-quote-group {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(45, 49, 43, 0.12);
+}
+
+.real-quote-group h4,
+.real-route-result h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.warning-note {
+  color: #7a4a00;
+  font-weight: 700;
+}
+
 .real-quote-row {
   align-items: center;
   border-top: 1px solid rgba(45, 49, 43, 0.12);

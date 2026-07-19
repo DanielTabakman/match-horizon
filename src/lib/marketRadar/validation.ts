@@ -47,20 +47,12 @@ export function validateMapping(mapping: MarketMapping): MarketMapping {
     throw new Error("MarketMapping must include ids for the mapping, venue, market, and outcome.");
   }
 
-  if (!["exact", "related", "not-equivalent"].includes(mapping.equivalence)) {
+  if (!["settlement-exact", "normal-completion-comparable", "related", "not-equivalent"].includes(mapping.equivalence)) {
     throw new Error(`Unsupported market mapping equivalence: ${mapping.equivalence}`);
   }
 
-  if (!["compatible", "incompatible", "unverified"].includes(mapping.exceptionalResolution)) {
-    throw new Error(`Unsupported market mapping exceptional resolution audit: ${mapping.exceptionalResolution}`);
-  }
-
-  if (mapping.equivalence === "exact" && !mapping.canonicalSelectionId) {
-    throw new Error("Exact MarketMapping requires a canonical selection id.");
-  }
-
-  if (mapping.equivalence === "exact" && mapping.exceptionalResolution !== "compatible") {
-    throw new Error("Exact MarketMapping requires compatible exceptional-resolution rules.");
+  if ((mapping.equivalence === "settlement-exact" || mapping.equivalence === "normal-completion-comparable") && !mapping.canonicalSelectionId) {
+    throw new Error("Comparable MarketMapping requires a canonical selection id.");
   }
 
   if (!mapping.resolutionNotes) {

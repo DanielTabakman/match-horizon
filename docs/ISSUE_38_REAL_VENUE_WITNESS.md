@@ -16,19 +16,22 @@ Kalshi production base used:
 Live probes used:
 
 - Kalshi `GET /markets?limit=100&status=open&event_ticker=KXMENWORLDCUP-26`
+- Kalshi `GET /markets/KXMENWORLDCUP-26-AR`
 - Kalshi `GET /markets/KXMENWORLDCUP-26-AR/orderbook`
 - SX Bet `GET https://api.sx.bet/markets/active?onlyMainLine=true`
+- SX Bet `GET https://api.sx.bet/markets/find?marketHashes=0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1`
+- SX Bet `GET https://api.sx.bet/orders?marketHashes=0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1&perPage=50`
 - Polymarket `GET https://gamma-api.polymarket.com/events?active=true&closed=false&limit=10&tag_slug=sports`
 
-## Exact Group
+## Normal-Completion Comparable Group
 
 Canonical selection: `fifa-world-cup-2026-winner:argentina`
 
 | Venue | Market ID | Outcome ID | Title | Decision | Notes |
 | --- | --- | --- | --- | --- | --- |
-| SX Bet | `0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1` | `outcome-one` | Argentina vs The Field - Outrights - World Cup | exact | Argentina to win World Cup outright. |
-| Kalshi | `KXMENWORLDCUP-26-AR` | `yes` | Will the Argentina win the 2026 Men's World Cup? | exact | YES resolves if Argentina wins the 2026 Men's World Cup. |
-| Polymarket | `0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f` | `18812649149814341758733697580460697418474693998558159483117100240528657629879` | Will Argentina win the 2026 FIFA World Cup? | exact | YES resolves according to the national team that wins the 2026 FIFA World Cup. |
+| SX Bet | `0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1` | `outcome-one` | Argentina vs The Field - Outrights - World Cup | normal-completion-comparable | Argentina to win World Cup outright; SX Bet exposes NO_GAME void handling. |
+| Kalshi | `KXMENWORLDCUP-26-AR` | `yes` | Will the Argentina win the 2026 Men's World Cup? | normal-completion-comparable | YES resolves if Argentina wins the 2026 Men's World Cup; exceptional handling is not sufficiently established as settlement-equivalent. |
+| Polymarket | `0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f` | `18812649149814341758733697580460697418474693998558159483117100240528657629879` | Will Argentina win the 2026 FIFA World Cup? | normal-completion-comparable | YES resolves according to the national team that wins the 2026 FIFA World Cup; cancellation or non-completion by deadline resolves to Other. |
 
 This group is not mapped to the historical France-Spain TxLINE fixture. It is a current cross-venue selection only.
 
@@ -40,10 +43,10 @@ This group is not mapped to the historical France-Spain TxLINE fixture. It is a 
 | Tournament identity | `Soccer`, `Outrights - World Cup`, event `argentina:the-field`. | Event ticker `KXMENWORLDCUP-26`; descriptive FIFA/World Cup references in title and rules. | 2026 FIFA World Cup winner event. | Compatible. |
 | Time horizon | `gameTime` is 2026-07-22T12:00:00Z in the public SX payload. | `expected_expiration_time` is 2026-07-19T14:00:00Z; `early_close_condition` says the market closes after a title holder is declared. | `endDate` is 2026-07-20T00:00:00Z. | Compatible for the tournament-winner horizon. |
 | Market close vs technical expiration | Public SX payload exposes active status and `NO_GAME` void label, but no separate technical expiration text. | `close_time` / `expiration_time` are 2028-07-18T14:00:00Z, while `expected_expiration_time` is 2026-07-19T14:00:00Z. | Market end date is 2026-07-20T00:00:00Z. | Kalshi's 2028 fields are technical/latest expiration bounds; the event horizon is the 2026 title-holder declaration. |
-| Cancellation / abandonment / not completed | Public SX payload exposes `outcomeVoidName: NO_GAME`; no fuller public cancellation rules were available from the active-market payload. | Public market text does not expose an explicit cancellation clause; it says the market resolves Yes if Argentina wins and closes after title holder is declared. | If canceled or not completed by 2026-10-13 23:59, resolves to Other. | Exception handling is documented as a limitation. The app treats the group as exact only for paper routing of the ordinary winner outcome and does not model settlement money. |
-| Resolution source | Public SX payload does not include a narrative resolution source. | Kalshi market rules and event ticker are the public source. | FIFA official information, with credible reporting fallback. | Compatible enough for read-only quote comparison; source differences are surfaced as provenance. |
+| Cancellation / abandonment / not completed | Public SX payload exposes `outcomeVoidName: NO_GAME`; public review indicates NO_GAME voids/returns wagers. | Public market text reviewed here does not sufficiently establish cancellation/abandonment/deadline treatment. | If canceled or not completed by 2026-10-13 23:59, resolves to Other. | Not settlement-equivalent on public evidence. |
+| Resolution source | Public SX payload does not include a narrative resolution source. | Kalshi market rules and event ticker are the public source. | FIFA official information, with credible reporting fallback. | Comparable for normal completion only; source differences are surfaced as provenance. |
 
-Final conclusion: retain `equivalence=exact` for the ordinary Argentina-wins-tournament selection, with `exceptionalResolution=compatible` only for this paper-routing comparison. The app does not claim compatible custody, settlement, or live execution, and the witness keeps the exceptional-resolution limitations visible.
+Final conclusion: use `equivalence=normal-completion-comparable` for the Argentina group. Do not call it settlement-exact or fully fungible liquidity. The app may show a normal-completion paper route, but it must visibly warn that exceptional cancellation, abandonment, or deadline handling may differ by venue.
 
 ## Rejected Candidates
 

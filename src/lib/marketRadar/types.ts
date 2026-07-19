@@ -30,12 +30,11 @@ export type ExternalMarketObservation = {
   rawStatus: string;
 };
 
-export type MappingEquivalence = "exact" | "related" | "not-equivalent";
+export type MappingEquivalence = "settlement-exact" | "normal-completion-comparable" | "related" | "not-equivalent";
 
 export type MarketMapping = {
   id: string;
   canonicalSelectionId: string | null;
-  exceptionalResolution: "compatible" | "incompatible" | "unverified";
   txlineFixtureId: string | null;
   txlineOutcomeId: OutcomeQuote["outcomeId"] | null;
   venueId: string;

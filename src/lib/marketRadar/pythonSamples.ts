@@ -34,7 +34,7 @@ export const PYTHON_STRATEGY_SAMPLES: PythonStrategySample[] = [
         return {"decision": "reject", "score": 20, "reasons": ["Spread is too wide for stale-market detection."], "metrics": {"spread": spread}}
 
     divergence = reference - ask
-    decision = "accept" if divergence >= 0.08 and mapping and mapping.get("equivalence") == "exact" else "context-only"
+    decision = "accept" if divergence >= 0.08 and mapping and mapping.get("equivalence") == "settlement-exact" else "context-only"
     return {"decision": decision, "score": round(abs(divergence) * 100, 2), "reasons": ["Reference divergence checked against mapping and spread."], "metrics": {"ask": ask, "reference": reference, "divergence": divergence, "ageMinutes": age_minutes}}`,
   },
   {
@@ -75,14 +75,14 @@ def evaluate(context):
     price = obs.get("midpointProbability") or obs.get("bestAskProbability")
     mapping = obs.get("mapping")
     group = None
-    if mapping and mapping.get("equivalence") == "exact" and mapping.get("txlineFixtureId") and mapping.get("txlineOutcomeId"):
+    if mapping and mapping.get("equivalence") == "settlement-exact" and mapping.get("txlineFixtureId") and mapping.get("txlineOutcomeId"):
         group = mapping["txlineFixtureId"] + ":" + mapping["txlineOutcomeId"]
     peers = []
     for candidate in context["observations"]:
         candidate_price = candidate.get("midpointProbability") or candidate.get("bestAskProbability")
         candidate_mapping = candidate.get("mapping")
         candidate_group = None
-        if candidate_mapping and candidate_mapping.get("equivalence") == "exact" and candidate_mapping.get("txlineFixtureId") and candidate_mapping.get("txlineOutcomeId"):
+        if candidate_mapping and candidate_mapping.get("equivalence") == "settlement-exact" and candidate_mapping.get("txlineFixtureId") and candidate_mapping.get("txlineOutcomeId"):
             candidate_group = candidate_mapping["txlineFixtureId"] + ":" + candidate_mapping["txlineOutcomeId"]
         if group is not None and candidate["venueId"] != obs["venueId"] and candidate_group == group and candidate_price is not None:
             peers.append(candidate_price)
@@ -106,8 +106,8 @@ def evaluate(context):
     depth = obs.get("availableAskSize") or obs.get("availableBidSize") or 0
     passes = probability is not None and probability <= 0.25 and (spread is None or spread <= 0.15) and depth >= 10
     mapping = obs.get("mapping")
-    exact = bool(mapping and mapping.get("equivalence") == "exact")
-    decision = "context-only" if not exact and passes else ("accept" if passes else "reject")
+    settlement_exact = bool(mapping and mapping.get("equivalence") == "settlement-exact")
+    decision = "context-only" if not settlement_exact and passes else ("accept" if passes else "reject")
     return {"decision": decision, "score": round((1 - (probability or 1)) * min(depth / 100, 1) * 100, 2), "reasons": ["Low-probability outcome checked for depth and spread."], "metrics": {"probability": probability, "spread": spread, "depth": depth}}`,
   },
   {

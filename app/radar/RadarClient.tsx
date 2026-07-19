@@ -51,7 +51,7 @@ type PythonRunState =
 
 const routeLabels = { "context-only": "Context only", mapped: "Mapped", "paper-executable": "Paper executable" };
 const recipeDescriptions: Record<string, string> = {
-  "stale-market": "Compares an exact mapping against the captured TxLINE reference and freshness gates.",
+  "stale-market": "Compares a settlement-exact mapping against the captured TxLINE reference and freshness gates.",
   "consensus-outlier": "Looks for a venue price that differs from peer mapped observations.",
   "liquidity-sweep": "Checks whether your belief clears the ask with enough top-of-book depth.",
   "belief-confirmation": "Requires both your belief and peer consensus to point above the venue price.",
@@ -103,7 +103,8 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const [realUserProbability, setRealUserProbability] = useState("55");
   const [realTargetStake, setRealTargetStake] = useState("5000");
   const [realMinimumOdds, setRealMinimumOdds] = useState("2.20");
-  const [realRouteState, setRealRouteState] = useState<{ signature: string; route: GenericExecutionRoute } | null>(null);
+  const [currentRealRouteState, setCurrentRealRouteState] = useState<{ signature: string; route: GenericExecutionRoute } | null>(null);
+  const [capturedRealRouteState, setCapturedRealRouteState] = useState<{ signature: string; route: GenericExecutionRoute } | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -211,7 +212,8 @@ export default function RadarClient({ initialSnapshot }: Props) {
     venue !== "all" || status !== "all" || category !== "all" || text.trim() !== "" || Number(minimumLiquidity || 0) > 0;
   const selected = filtered.find(({ observation }) => keyFor(observation) === selectedKey) ?? filtered[0] ?? null;
   const selectedCanonicalSelectionId =
-    selected?.observation.mapping?.equivalence === "exact"
+    selected?.observation.mapping?.equivalence === "settlement-exact" ||
+    selected?.observation.mapping?.equivalence === "normal-completion-comparable"
       ? selected.observation.mapping.canonicalSelectionId
       : null;
   const selectedEvaluation = selected?.evaluation ?? null;
@@ -259,13 +261,14 @@ export default function RadarClient({ initialSnapshot }: Props) {
     selectedCanonicalSelectionId,
     sourceStatuses: realQuoteSourceStatuses,
   });
-  const realQuoteSignature = quoteGroupSignature(realQuoteResult);
-  const realRoute = realRouteState?.signature === realQuoteSignature ? realRouteState.route : null;
+  const currentRealQuoteSignature = quoteGroupSignature(realQuoteResult, "live");
+  const capturedRealQuoteSignature = quoteGroupSignature(realQuoteResult, "captured");
+  const currentRealRoute = currentRealRouteState?.signature === currentRealQuoteSignature ? currentRealRouteState.route : null;
+  const capturedRealRoute = capturedRealRouteState?.signature === capturedRealQuoteSignature ? capturedRealRouteState.route : null;
   const realUserProbabilityValue = Number(realUserProbability) / 100;
   const realTargetStakeValue = Number(realTargetStake);
   const realMinimumOddsValue = Number(realMinimumOdds);
-  const canBuildRealRoute =
-    (realQuoteResult.status === "ready-multi-venue" || realQuoteResult.status === "captured-witness") &&
+  const hasValidRealRouteInputs =
     Number.isFinite(realUserProbabilityValue) &&
     realUserProbabilityValue > 0 &&
     realUserProbabilityValue <= 1 &&
@@ -273,9 +276,13 @@ export default function RadarClient({ initialSnapshot }: Props) {
     realTargetStakeValue > 0 &&
     Number.isFinite(realMinimumOddsValue) &&
     realMinimumOddsValue > 1;
+  const canBuildCurrentRealRoute = realQuoteResult.liveStatus === "ready-multi-venue" && hasValidRealRouteInputs;
+  const canBuildCapturedRealRoute = realQuoteResult.capturedWitnessQuotes.length >= 2 && hasValidRealRouteInputs;
 
   async function refresh() {
     setIsRefreshing(true);
+    setCurrentRealRouteState(null);
+    setCapturedRealRouteState(null);
     try {
       const response = await fetch("/api/radar", { cache: "no-store" });
       if (!response.ok) {
@@ -286,7 +293,6 @@ export default function RadarClient({ initialSnapshot }: Props) {
         throw new Error("Radar refresh returned an invalid response.");
       }
       setSnapshot(nextSnapshot);
-      setRealRouteState(null);
       setRefreshError(null);
     } catch {
       setRefreshError("Refresh failed. Showing the previous snapshot.");
@@ -322,16 +328,13 @@ export default function RadarClient({ initialSnapshot }: Props) {
     }));
   }
 
-  function buildRealRoute() {
-    if (
-      (realQuoteResult.status !== "ready-multi-venue" && realQuoteResult.status !== "captured-witness") ||
-      !canBuildRealRoute
-    ) {
+  function buildCurrentRealRoute() {
+    if (realQuoteResult.liveStatus !== "ready-multi-venue" || !canBuildCurrentRealRoute || !realQuoteResult.canonicalSelectionId) {
       return;
     }
 
-    setRealRouteState({
-      signature: realQuoteSignature,
+    setCurrentRealRouteState({
+      signature: currentRealQuoteSignature,
       route: buildRealPaperRoute(
         {
           selectionId: realQuoteResult.canonicalSelectionId,
@@ -339,7 +342,26 @@ export default function RadarClient({ initialSnapshot }: Props) {
           minimumDecimalOdds: realMinimumOddsValue,
           userProbability: realUserProbabilityValue,
         },
-        realQuoteResult.quotes,
+        realQuoteResult.currentLiveQuotes,
+      ),
+    });
+  }
+
+  function buildCapturedRealRoute() {
+    if (!canBuildCapturedRealRoute || !realQuoteResult.canonicalSelectionId) {
+      return;
+    }
+
+    setCapturedRealRouteState({
+      signature: capturedRealQuoteSignature,
+      route: buildRealPaperRoute(
+        {
+          selectionId: realQuoteResult.canonicalSelectionId,
+          requestedStake: realTargetStakeValue,
+          minimumDecimalOdds: realMinimumOddsValue,
+          userProbability: realUserProbabilityValue,
+        },
+        realQuoteResult.capturedWitnessQuotes,
       ),
     });
   }
@@ -348,13 +370,14 @@ export default function RadarClient({ initialSnapshot }: Props) {
     const witness = snapshot.observations.find(
       (observation) =>
         observation.mapping?.canonicalSelectionId === ARGENTINA_WITNESS_SELECTION_ID &&
-        observation.mapping.equivalence === "exact",
+        observation.mapping.equivalence === "normal-completion-comparable",
     );
     if (!witness) return;
     clearFilters();
     setMarketScope("world-cup-soccer");
     setSelectedKey(keyFor(witness));
-    setRealRouteState(null);
+    setCurrentRealRouteState(null);
+    setCapturedRealRouteState(null);
   }
 
   function loadPythonSample(sampleId: string) {
@@ -649,31 +672,37 @@ export default function RadarClient({ initialSnapshot }: Props) {
           )}
           <RealVenueQuotesPanel
             result={realQuoteResult}
-            route={realRoute}
+            currentRoute={currentRealRoute}
+            capturedRoute={capturedRealRoute}
             evaluationTimestamp={snapshot.observedAt}
             userProbability={realUserProbability}
             targetStake={realTargetStake}
             minimumOdds={realMinimumOdds}
-            canBuild={canBuildRealRoute}
+            canBuildCurrent={canBuildCurrentRealRoute}
+            canBuildCaptured={canBuildCapturedRealRoute}
             hasWitness={snapshot.observations.some(
               (observation) =>
                 observation.mapping?.canonicalSelectionId === ARGENTINA_WITNESS_SELECTION_ID &&
-                observation.mapping.equivalence === "exact",
+                observation.mapping.equivalence === "normal-completion-comparable",
             )}
             onViewWitness={viewCrossVenueWitness}
             onUserProbabilityChange={(value) => {
               setRealUserProbability(value);
-              setRealRouteState(null);
+              setCurrentRealRouteState(null);
+              setCapturedRealRouteState(null);
             }}
             onTargetStakeChange={(value) => {
               setRealTargetStake(value);
-              setRealRouteState(null);
+              setCurrentRealRouteState(null);
+              setCapturedRealRouteState(null);
             }}
             onMinimumOddsChange={(value) => {
               setRealMinimumOdds(value);
-              setRealRouteState(null);
+              setCurrentRealRouteState(null);
+              setCapturedRealRouteState(null);
             }}
-            onBuild={buildRealRoute}
+            onBuildCurrent={buildCurrentRealRoute}
+            onBuildCaptured={buildCapturedRealRoute}
           />
           <div className="lab-tabs" role="tablist" aria-label="Strategy Lab mode">
             <button type="button" className={labTab === "built-in" ? "active" : ""} onClick={() => setLabTab("built-in")}>Built-in</button>
@@ -808,105 +837,140 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function RealVenueQuotesPanel({
   result,
-  route,
+  currentRoute,
+  capturedRoute,
   evaluationTimestamp,
   userProbability,
   targetStake,
   minimumOdds,
-  canBuild,
+  canBuildCurrent,
+  canBuildCaptured,
   hasWitness,
   onViewWitness,
   onUserProbabilityChange,
   onTargetStakeChange,
   onMinimumOddsChange,
-  onBuild,
+  onBuildCurrent,
+  onBuildCaptured,
 }: {
   result: RealQuoteBuildResult;
-  route: GenericExecutionRoute | null;
+  currentRoute: GenericExecutionRoute | null;
+  capturedRoute: GenericExecutionRoute | null;
   evaluationTimestamp: string;
   userProbability: string;
   targetStake: string;
   minimumOdds: string;
-  canBuild: boolean;
+  canBuildCurrent: boolean;
+  canBuildCaptured: boolean;
   hasWitness: boolean;
   onViewWitness: () => void;
   onUserProbabilityChange: (value: string) => void;
   onTargetStakeChange: (value: string) => void;
   onMinimumOddsChange: (value: string) => void;
-  onBuild: () => void;
+  onBuildCurrent: () => void;
+  onBuildCaptured: () => void;
 }) {
-  const quotes = result.quotes;
-  const stateLabel = {
-    "ready-multi-venue": "Two or more exact venues available",
-    "single-venue": "One exact venue available",
-    "no-exact-overlap": "No exact cross-venue overlap",
+  const liveStateLabel = {
+    "ready-multi-venue": "Two or more current venues available",
+    "single-venue": "One live venue available",
+    "no-current-route": "No current live route",
     "quotes-stale": "Quotes stale",
-    "captured-witness": "Captured real quotes",
-  }[result.status];
-  const buildLabel = result.status === "captured-witness" ? "Replay captured paper route" : "Build paper route";
+    "no-comparable-overlap": "No comparable mapped overlap",
+  }[result.liveStatus];
 
   return (
     <section className="real-quotes-panel" aria-label="Real venue quotes">
       <div className="panel-heading compact-heading">
         <div>
-          <h3>{result.status === "captured-witness" ? "Captured real quotes" : "Real venue quotes"}</h3>
+          <h3>Real venue quotes</h3>
           <span>Real read-only quotes · paper execution only</span>
         </div>
-        <strong>{stateLabel}</strong>
+        <strong>Comparable under normal tournament completion</strong>
       </div>
+      <p className="radar-note warning-note">Exceptional cancellation, abandonment, or deadline handling may differ by venue.</p>
       <div className="real-witness-actions">
         <button className="button-secondary" type="button" onClick={onViewWitness} disabled={!hasWitness}>
           View cross-venue witness
         </button>
       </div>
-      {quotes.length > 0 ? (
-        <div className="real-quote-list">
-          {quotes.map((quote) => (
-            <div className="real-quote-row" key={quote.quoteId}>
-              <strong>{quote.venueLabel}</strong>
-              <span>{quote.provenance.canonicalSelectionId}</span>
-              <Metric label="Ask" value={fmtProb(1 / quote.decimalOdds)} />
-              <Metric label="Odds" value={quote.decimalOdds.toFixed(3)} />
-              <Metric
-                label={quote.provenance.status === "captured" ? "Captured notional" : "Ask notional"}
-                value={`$${quote.availableStake.toFixed(0)}`}
-              />
-              <Metric label="Age" value={fmtAge(quote.provenance.observedAt, evaluationTimestamp)} />
-              <span className="quote-badge">{quote.provenance.status}</span>
-              <code>{quote.provenance.mappingId}</code>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="radar-note">No exact real quotes are available for routing.</p>
-      )}
-      {result.status === "no-exact-overlap" || result.status === "quotes-stale" ? <p className="radar-note">{result.reason}</p> : null}
-      {result.status === "single-venue" || result.status === "captured-witness" ? <p className="radar-note">{result.reason}</p> : null}
+      <section className="real-quote-group" aria-label="Current live comparable quotes">
+        <div className="panel-heading compact-heading"><h4>Current live quotes</h4><strong>{liveStateLabel}</strong></div>
+        <QuoteList quotes={result.currentLiveQuotes} evaluationTimestamp={evaluationTimestamp} emptyText="No current live comparable quotes are available for routing." />
+        <p className="radar-note">{result.liveReason}</p>
+      </section>
+      <section className="real-quote-group" aria-label="Captured witness quotes">
+        <div className="panel-heading compact-heading"><h4>Captured comparison</h4><strong>{result.capturedStatus === "captured-witness" ? "Captured witness available" : "No captured witness"}</strong></div>
+        <QuoteList quotes={result.capturedWitnessQuotes} evaluationTimestamp={evaluationTimestamp} emptyText="No captured witness quotes are available for this selected market." />
+        {result.capturedReason ? <p className="radar-note">{result.capturedReason}</p> : null}
+      </section>
       <div className="real-route-controls">
         <label><span>Your probability</span><input aria-label="Real route user probability" inputMode="decimal" min="0" max="100" type="number" value={userProbability} onChange={(event) => onUserProbabilityChange(event.target.value)} /></label>
         <label><span>Paper target stake</span><input aria-label="Real route paper target stake" inputMode="decimal" min="1" type="number" value={targetStake} onChange={(event) => onTargetStakeChange(event.target.value)} /></label>
         <label><span>Minimum decimal odds</span><input aria-label="Real route minimum decimal odds" inputMode="decimal" min="1.01" step="0.01" type="number" value={minimumOdds} onChange={(event) => onMinimumOddsChange(event.target.value)} /></label>
-        <button className="button-primary" type="button" disabled={!canBuild} onClick={onBuild}>{buildLabel}</button>
+        <button className="button-primary" type="button" disabled={!canBuildCurrent} onClick={onBuildCurrent}>Build current paper route</button>
+        <button className="button-secondary" type="button" disabled={!canBuildCaptured} onClick={onBuildCaptured}>Replay captured paper route</button>
       </div>
-      {route ? (
-        <div className="real-route-result">
-          <div className="metrics-row compact">
-            <Metric label="Requested" value={`$${route.requestedStake.toFixed(0)}`} />
-            <Metric label="Filled" value={`$${route.filledStake.toFixed(0)}`} />
-            <Metric label="Unfilled" value={`$${route.unfilledStake.toFixed(0)}`} />
-            <Metric label="Weighted odds" value={route.weightedAverageOdds === null ? "-" : route.weightedAverageOdds.toFixed(3)} />
-            <Metric label="Gross payout" value={`$${route.estimatedGrossPayout.toFixed(0)}`} />
-            <Metric label="Expected value" value={`$${route.expectedValue.toFixed(0)}`} />
-          </div>
-          {route.unfilledStake > 0 ? <p className="radar-note">Visible capacity insufficient for the full requested stake.</p> : null}
-          <div className="real-fill-list">
-            {route.fills.map((fill) => (
-              <p key={fill.quoteId}>{fill.venueLabel}: ${fill.filledStake.toFixed(0)} at {fill.decimalOdds.toFixed(3)}</p>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <p className="radar-note">Normal-completion paper route assumes the tournament completes normally; it is not settlement-equivalent liquidity.</p>
+      {currentRoute ? <RealRouteResult route={currentRoute} title="Normal-completion paper route" /> : null}
+      {capturedRoute ? <RealRouteResult route={capturedRoute} title="Captured normal-completion paper route" /> : null}
     </section>
+  );
+}
+
+function QuoteList({
+  quotes,
+  evaluationTimestamp,
+  emptyText,
+}: {
+  quotes: RealQuoteBuildResult["currentLiveQuotes"];
+  evaluationTimestamp: string;
+  emptyText: string;
+}) {
+  if (quotes.length === 0) {
+    return <p className="radar-note">{emptyText}</p>;
+  }
+
+  return (
+    <div className="real-quote-list">
+      {quotes.map((quote) => (
+        <div className="real-quote-row" key={quote.quoteId}>
+          <strong>{quote.venueLabel}</strong>
+          <span>{quote.provenance.canonicalSelectionId}</span>
+          <Metric label="Ask" value={fmtProb(1 / quote.decimalOdds)} />
+          <Metric label="Odds" value={quote.decimalOdds.toFixed(3)} />
+          <Metric
+            label={quote.provenance.status === "captured" ? "Captured notional" : "Ask notional"}
+            value={`$${quote.availableStake.toFixed(0)}`}
+          />
+          <Metric label="Age" value={fmtAge(quote.provenance.observedAt, evaluationTimestamp)} />
+          <span className="quote-badge">{quote.provenance.status}</span>
+          <code>{quote.provenance.mappingId}</code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RealRouteResult({ route, title }: { route: GenericExecutionRoute; title: string }) {
+  return (
+    <div className="real-route-result">
+      <h4>{title}</h4>
+      <p className="radar-note">Assumption: comparable under normal tournament completion; no live execution or settlement equivalence is claimed.</p>
+      <div className="metrics-row compact">
+        <Metric label="Requested" value={`$${route.requestedStake.toFixed(0)}`} />
+        <Metric label="Filled" value={`$${route.filledStake.toFixed(0)}`} />
+        <Metric label="Unfilled" value={`$${route.unfilledStake.toFixed(0)}`} />
+        <Metric label="Weighted odds" value={route.weightedAverageOdds === null ? "-" : route.weightedAverageOdds.toFixed(3)} />
+        <Metric label="Gross payout" value={`$${route.estimatedGrossPayout.toFixed(0)}`} />
+        <Metric label="Expected value" value={`$${route.expectedValue.toFixed(0)}`} />
+      </div>
+      {route.unfilledStake > 0 ? <p className="radar-note">Visible capacity insufficient for the full requested stake.</p> : null}
+      <div className="real-fill-list">
+        {route.fills.map((fill) => (
+          <p key={fill.quoteId}>{fill.venueLabel}: ${fill.filledStake.toFixed(0)} at {fill.decimalOdds.toFixed(3)}</p>
+        ))}
+      </div>
+    </div>
   );
 }
 

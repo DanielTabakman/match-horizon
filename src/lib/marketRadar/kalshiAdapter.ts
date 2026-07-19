@@ -14,6 +14,7 @@ const MAX_MARKETS = 8;
 const TARGET_TICKER = "KXMENWORLDCUP-26-AR";
 
 type KalshiMarketsResponse = { cursor?: string; markets?: KalshiMarket[] };
+type KalshiMarketResponse = { market?: KalshiMarket };
 
 export async function fetchKalshiObservations(): Promise<ConnectorResult> {
   const startedAt = Date.now();
@@ -65,10 +66,8 @@ async function fetchLiveKalshiObservations(): Promise<ExternalMarketObservation[
     throw new Error("Kalshi markets response did not match expected shape.");
   }
 
-  const targetMarket = response.markets.find((market) => market.ticker === TARGET_TICKER) ?? null;
   const markets = dedupeMarkets([
-    ...response.markets.filter((market) => market.market_type === "binary").slice(0, MAX_MARKETS),
-    ...(targetMarket ? [targetMarket] : []),
+    ...response.markets.filter((market) => market.ticker !== TARGET_TICKER && market.market_type === "binary").slice(0, MAX_MARKETS),
   ]);
   const observedAt = new Date().toISOString();
   const observations: ExternalMarketObservation[] = [];
@@ -85,15 +84,36 @@ async function fetchLiveKalshiObservations(): Promise<ExternalMarketObservation[
     throw new Error("Kalshi returned no public World Cup binary markets.");
   }
 
-  if (!observations.some((observation) => observation.externalMarketId === TARGET_TICKER)) {
-    observations.push(
-      ...loadKalshiFixtureObservations()
-        .filter((observation) => observation.externalMarketId === TARGET_TICKER)
-        .map((observation) => ({ ...observation, rawStatus: `captured:${observation.rawStatus}` })),
-    );
-  }
+  return dedupeObservations([...observations, ...(await fetchTargetedKalshiObservations(observedAt))]);
+}
 
-  return dedupeObservations(observations);
+async function fetchTargetedKalshiObservations(observedAt: string): Promise<ExternalMarketObservation[]> {
+  try {
+    const response = await cachedJson<KalshiMarketResponse>({
+      cacheKey: `kalshi:market:${TARGET_TICKER}`,
+      ttlMs: CACHE_TTL_MS,
+      timeoutMs: TIMEOUT_MS,
+      url: `${KALSHI_API}/markets/${encodeURIComponent(TARGET_TICKER)}`,
+    });
+    if (!response.market || response.market.ticker !== TARGET_TICKER) {
+      throw new Error("Kalshi targeted witness market was not returned.");
+    }
+    const book = await cachedJson<KalshiOrderbook>({
+      cacheKey: `kalshi:orderbook:${TARGET_TICKER}`,
+      ttlMs: CACHE_TTL_MS,
+      timeoutMs: TIMEOUT_MS,
+      url: `${KALSHI_API}/markets/${encodeURIComponent(TARGET_TICKER)}/orderbook`,
+    });
+    return normalizeKalshiMarket(response.market, book, observedAt);
+  } catch {
+    return capturedTargetObservations();
+  }
+}
+
+function capturedTargetObservations(): ExternalMarketObservation[] {
+  return loadKalshiFixtureObservations()
+    .filter((observation) => observation.externalMarketId === TARGET_TICKER)
+    .map((observation) => ({ ...observation, rawStatus: `captured:${observation.rawStatus}` }));
 }
 
 function dedupeMarkets(markets: KalshiMarket[]): KalshiMarket[] {

@@ -1,40 +1,21 @@
 import { buildGenericExecutionRoute } from "../execution/router";
 import type { GenericExecutionIntent, GenericExecutionRoute } from "../execution/router";
-import type { ObservationWithMapping, ProvenancedGenericQuote } from "./types";
+import type { MarketMapping, ObservationWithMapping, ProvenancedGenericQuote } from "./types";
 
 export const REAL_QUOTE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-export type RealQuoteBuildResult =
-  | {
-      status: "ready-multi-venue";
-      quotes: ProvenancedGenericQuote[];
-      canonicalSelectionId: string;
-      reason: string;
-    }
-  | {
-      status: "single-venue";
-      quotes: ProvenancedGenericQuote[];
-      canonicalSelectionId: string;
-      reason: string;
-    }
-  | {
-      status: "no-exact-overlap";
-      quotes: ProvenancedGenericQuote[];
-      canonicalSelectionId: string | null;
-      reason: string;
-    }
-  | {
-      status: "quotes-stale";
-      quotes: ProvenancedGenericQuote[];
-      canonicalSelectionId: string;
-      reason: string;
-    }
-  | {
-      status: "captured-witness";
-      quotes: ProvenancedGenericQuote[];
-      canonicalSelectionId: string;
-      reason: string;
-    };
+export type RealLiveQuoteStatus = "ready-multi-venue" | "single-venue" | "no-current-route" | "quotes-stale" | "no-comparable-overlap";
+export type RealCapturedQuoteStatus = "captured-witness" | "no-captured-witness";
+
+export type RealQuoteBuildResult = {
+  canonicalSelectionId: string | null;
+  currentLiveQuotes: ProvenancedGenericQuote[];
+  capturedWitnessQuotes: ProvenancedGenericQuote[];
+  liveStatus: RealLiveQuoteStatus;
+  capturedStatus: RealCapturedQuoteStatus;
+  liveReason: string;
+  capturedReason: string | null;
+};
 
 export function buildRealExecutableQuotes({
   observations,
@@ -49,85 +30,66 @@ export function buildRealExecutableQuotes({
 }): RealQuoteBuildResult {
   if (!selectedCanonicalSelectionId) {
     return {
-      status: "no-exact-overlap",
-      quotes: [],
       canonicalSelectionId: null,
-      reason: "Select an exactly mapped market to compare real venues.",
+      currentLiveQuotes: [],
+      capturedWitnessQuotes: [],
+      liveStatus: "no-comparable-overlap",
+      capturedStatus: "no-captured-witness",
+      liveReason: "Select a comparable mapped market to compare real venues.",
+      capturedReason: null,
     };
   }
 
   const group = observations.filter(
     (observation) =>
-      observation.mapping?.equivalence === "exact" &&
+      isComparableMapping(observation.mapping) &&
       observation.mapping.canonicalSelectionId === selectedCanonicalSelectionId,
   );
 
   if (group.length === 0) {
     return {
-      status: "no-exact-overlap",
-      quotes: [],
       canonicalSelectionId: selectedCanonicalSelectionId,
-      reason: "No exact cross-venue group exists for the selected market.",
+      currentLiveQuotes: [],
+      capturedWitnessQuotes: [],
+      liveStatus: "no-comparable-overlap",
+      capturedStatus: "no-captured-witness",
+      liveReason: "No comparable cross-venue group exists for the selected market.",
+      capturedReason: null,
     };
   }
 
   const allQuotes = group
     .map((observation) => toRealQuote(observation, sourceStatuses?.[observation.venueId] ?? "live"))
     .filter((quote): quote is ProvenancedGenericQuote => quote !== null);
-  const capturedQuotes = allQuotes.filter((quote) => quote.provenance.status === "captured");
+  const capturedWitnessQuotes = sortQuotes(allQuotes.filter((quote) => quote.provenance.status === "captured"));
   const liveQuotes = allQuotes.filter((quote) => quote.provenance.status === "live");
-  const freshLiveQuotes = liveQuotes.filter((quote) => quoteAgeMs(quote, now) <= REAL_QUOTE_MAX_AGE_MS);
-  const liveVenueCount = new Set(freshLiveQuotes.map((quote) => quote.venueId)).size;
-
-  if (liveVenueCount >= 2) {
-    return {
-      status: "ready-multi-venue",
-      quotes: sortQuotes(freshLiveQuotes),
-      canonicalSelectionId: selectedCanonicalSelectionId,
-      reason: "Two or more exact live venues are available.",
-    };
-  }
-
-  if (liveVenueCount === 1) {
-    return {
-      status: "single-venue",
-      quotes: sortQuotes(freshLiveQuotes),
-      canonicalSelectionId: selectedCanonicalSelectionId,
-      reason: "One exact live venue is available; cross-venue routing needs at least two venues.",
-    };
-  }
-
-  if (capturedQuotes.length > 0) {
-    return {
-      status: "captured-witness",
-      quotes: sortQuotes(capturedQuotes),
-      canonicalSelectionId: selectedCanonicalSelectionId,
-      reason: "Captured real quotes are shown for witness replay only; they are not current live capacity.",
-    };
-  }
-
-  if (liveQuotes.length > 0) {
-    return {
-      status: "quotes-stale",
-      quotes: sortQuotes(liveQuotes),
-      canonicalSelectionId: selectedCanonicalSelectionId,
-      reason: "Exact live quotes are stale or invalid; refresh before building a live route.",
-    };
-  }
+  const currentLiveQuotes = sortQuotes(liveQuotes.filter((quote) => quoteAgeMs(quote, now) <= REAL_QUOTE_MAX_AGE_MS));
+  const liveVenueCount = new Set(currentLiveQuotes.map((quote) => quote.venueId)).size;
 
   return {
-    status: "no-exact-overlap",
-    quotes: [],
     canonicalSelectionId: selectedCanonicalSelectionId,
-    reason: "Exact peers exist, but none have valid active executable asks and capacity.",
+    currentLiveQuotes,
+    capturedWitnessQuotes,
+    liveStatus: liveStatusFor({ liveVenueCount, liveQuotes }),
+    capturedStatus: capturedWitnessQuotes.length > 0 ? "captured-witness" : "no-captured-witness",
+    liveReason: liveReasonFor({ liveVenueCount, liveQuotes }),
+    capturedReason:
+      capturedWitnessQuotes.length > 0
+        ? "Captured real quotes are shown for witness replay only; they are not current live capacity."
+        : null,
   };
 }
 
-export function quoteGroupSignature(result: RealQuoteBuildResult): string {
+export function quoteGroupSignature(
+  result: RealQuoteBuildResult,
+  group: "live" | "captured",
+): string {
+  const quotes = group === "live" ? result.currentLiveQuotes : result.capturedWitnessQuotes;
   return JSON.stringify({
-    status: result.status,
+    group,
+    status: group === "live" ? result.liveStatus : result.capturedStatus,
     canonicalSelectionId: result.canonicalSelectionId,
-    quotes: result.quotes.map((quote) => ({
+    quotes: quotes.map((quote) => ({
       quoteId: quote.quoteId,
       odds: quote.decimalOdds,
       capacity: quote.availableStake,
@@ -144,12 +106,38 @@ export function buildRealPaperRoute(
   return buildGenericExecutionRoute(intent, quotes);
 }
 
+function liveStatusFor({
+  liveVenueCount,
+  liveQuotes,
+}: {
+  liveVenueCount: number;
+  liveQuotes: ProvenancedGenericQuote[];
+}): RealLiveQuoteStatus {
+  if (liveVenueCount >= 2) return "ready-multi-venue";
+  if (liveVenueCount === 1) return "single-venue";
+  if (liveQuotes.length > 0) return "quotes-stale";
+  return "no-current-route";
+}
+
+function liveReasonFor({
+  liveVenueCount,
+  liveQuotes,
+}: {
+  liveVenueCount: number;
+  liveQuotes: ProvenancedGenericQuote[];
+}): string {
+  if (liveVenueCount >= 2) return "Two or more current live venues are comparable under normal tournament completion.";
+  if (liveVenueCount === 1) return "One current live venue is available; cross-venue routing needs at least two current venues.";
+  if (liveQuotes.length > 0) return "Comparable live quotes are stale; refresh before building a current paper route.";
+  return "No current live comparable quotes are available for routing.";
+}
+
 function toRealQuote(observation: ObservationWithMapping, sourceStatus: "live" | "captured"): ProvenancedGenericQuote | null {
   const mapping = observation.mapping;
   const probability = observation.bestAskProbability;
   const availableStake = observation.availableAskSize;
   if (
-    mapping?.equivalence !== "exact" ||
+    !isComparableMapping(mapping) ||
     !mapping.canonicalSelectionId ||
     !isActiveStatus(observation.rawStatus) ||
     probability === null ||
@@ -182,6 +170,10 @@ function toRealQuote(observation: ObservationWithMapping, sourceStatus: "live" |
       status,
     },
   };
+}
+
+function isComparableMapping(mapping: MarketMapping | null): mapping is MarketMapping {
+  return mapping?.equivalence === "settlement-exact" || mapping?.equivalence === "normal-completion-comparable";
 }
 
 function quoteAgeMs(quote: ProvenancedGenericQuote, now: number): number {
