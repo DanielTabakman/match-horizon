@@ -4,7 +4,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "france-a",
     venueId: "venue-alpha",
-    venueLabel: "Simulated Venue A",
+    venueLabel: "Paper Venue A",
     outcomeId: "participant_1",
     decimalOdds: 2.76,
     availableStake: 1200,
@@ -12,7 +12,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "france-b",
     venueId: "venue-beta",
-    venueLabel: "Simulated Venue B",
+    venueLabel: "Paper Venue B",
     outcomeId: "participant_1",
     decimalOdds: 2.7,
     availableStake: 1800,
@@ -20,7 +20,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "france-c",
     venueId: "venue-gamma",
-    venueLabel: "Simulated Venue C",
+    venueLabel: "Paper Venue C",
     outcomeId: "participant_1",
     decimalOdds: 2.62,
     availableStake: 2200,
@@ -28,7 +28,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "draw-a",
     venueId: "venue-alpha",
-    venueLabel: "Simulated Venue A",
+    venueLabel: "Paper Venue A",
     outcomeId: "draw",
     decimalOdds: 3.2,
     availableStake: 900,
@@ -36,7 +36,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "draw-b",
     venueId: "venue-beta",
-    venueLabel: "Simulated Venue B",
+    venueLabel: "Paper Venue B",
     outcomeId: "draw",
     decimalOdds: 3.14,
     availableStake: 1600,
@@ -44,7 +44,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "draw-c",
     venueId: "venue-gamma",
-    venueLabel: "Simulated Venue C",
+    venueLabel: "Paper Venue C",
     outcomeId: "draw",
     decimalOdds: 3.05,
     availableStake: 2500,
@@ -52,7 +52,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "spain-a",
     venueId: "venue-alpha",
-    venueLabel: "Simulated Venue A",
+    venueLabel: "Paper Venue A",
     outcomeId: "participant_2",
     decimalOdds: 3.5,
     availableStake: 500,
@@ -60,7 +60,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "spain-b",
     venueId: "venue-beta",
-    venueLabel: "Simulated Venue B",
+    venueLabel: "Paper Venue B",
     outcomeId: "participant_2",
     decimalOdds: 3.42,
     availableStake: 2000,
@@ -68,7 +68,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "spain-c",
     venueId: "venue-gamma",
-    venueLabel: "Simulated Venue C",
+    venueLabel: "Paper Venue C",
     outcomeId: "participant_2",
     decimalOdds: 3.3,
     availableStake: 2500,
@@ -76,7 +76,7 @@ export const DEMO_LIQUIDITY_BOOK: SimulatedQuote[] = [
   {
     quoteId: "spain-d",
     venueId: "venue-delta",
-    venueLabel: "Simulated Venue D",
+    venueLabel: "Paper Venue D",
     outcomeId: "participant_2",
     decimalOdds: 2.1,
     availableStake: 5000,

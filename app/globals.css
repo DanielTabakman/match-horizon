@@ -858,6 +858,56 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.real-quotes-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.real-quotes-panel .panel-heading strong,
+.quote-badge {
+  border: 1px solid rgba(37, 95, 111, 0.28);
+  border-radius: 999px;
+  color: #255f6f;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.real-quote-list,
+.real-fill-list {
+  display: grid;
+  gap: 8px;
+}
+
+.real-quote-row {
+  align-items: center;
+  border-top: 1px solid rgba(45, 49, 43, 0.12);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 8px;
+}
+
+.real-quote-row > span,
+.real-quote-row code {
+  color: #62665d;
+  overflow-wrap: anywhere;
+}
+
+.real-route-controls {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.real-route-result {
+  display: grid;
+  gap: 10px;
+}
+
 .lab-tabs,
 .python-actions,
 .python-run-grid,
@@ -1405,6 +1455,11 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .real-quote-row,
+  .real-route-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .stage-header .status-badge {
     justify-self: start;
   }
@@ -1416,6 +1471,11 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  .real-quote-row,
+  .real-route-controls {
+    grid-template-columns: 1fr;
+  }
+
   .product-header {
     align-items: stretch;
     display: grid;

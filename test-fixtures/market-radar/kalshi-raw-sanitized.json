@@ -1,0 +1,39 @@
+{
+  "markets": [
+    {
+      "ticker": "KXMENWORLDCUP-26-AR",
+      "event_ticker": "KXMENWORLDCUP-26",
+      "title": "Will the Argentina win the 2026 Men's World Cup?",
+      "market_type": "binary",
+      "status": "active",
+      "yes_sub_title": "Argentina",
+      "no_sub_title": "Argentina",
+      "yes_bid_dollars": "0.4170",
+      "yes_ask_dollars": "0.4180",
+      "no_bid_dollars": "0.5820",
+      "no_ask_dollars": "0.5830",
+      "last_price_dollars": "0.4180",
+      "occurrence_datetime": "2026-06-28T21:00:00Z",
+      "close_time": "2028-07-18T14:00:00Z",
+      "rules_primary": "If Argentina wins the 2026 Men's World Cup, then the market resolves to Yes.",
+      "rules_secondary": "References to FIFA are descriptive only."
+    }
+  ],
+  "orderbook": {
+    "orderbook_fp": {
+      "yes_dollars": [
+        ["0.4170", "30349.19"],
+        ["0.4100", "57768.86"]
+      ],
+      "no_dollars": [
+        ["0.5820", "441520.80"],
+        ["0.5810", "6500.00"]
+      ]
+    }
+  },
+  "capturedAt": "2026-07-19T03:00:00.000Z",
+  "source": {
+    "markets": "https://external-api.kalshi.com/trade-api/v2/markets?limit=100&status=open&event_ticker=KXMENWORLDCUP-26",
+    "orderbook": "https://external-api.kalshi.com/trade-api/v2/markets/KXMENWORLDCUP-26-AR/orderbook"
+  }
+}

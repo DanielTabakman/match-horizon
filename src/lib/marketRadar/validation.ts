@@ -51,8 +51,8 @@ export function validateMapping(mapping: MarketMapping): MarketMapping {
     throw new Error(`Unsupported market mapping equivalence: ${mapping.equivalence}`);
   }
 
-  if (mapping.equivalence === "exact" && (!mapping.txlineFixtureId || !mapping.txlineOutcomeId)) {
-    throw new Error("Exact MarketMapping requires TxLINE fixture and outcome ids.");
+  if (mapping.equivalence === "exact" && !mapping.canonicalSelectionId) {
+    throw new Error("Exact MarketMapping requires a canonical selection id.");
   }
 
   if (!mapping.resolutionNotes) {

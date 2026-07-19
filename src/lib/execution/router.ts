@@ -7,6 +7,13 @@ export type ExecutionIntent = {
   userProbability: number;
 };
 
+export type GenericExecutionIntent = {
+  selectionId: string;
+  requestedStake: number;
+  minimumDecimalOdds: number;
+  userProbability: number;
+};
+
 export type SimulatedQuote = {
   quoteId: string;
   venueId: string;
@@ -16,11 +23,30 @@ export type SimulatedQuote = {
   availableStake: number;
 };
 
+export type GenericExecutableQuote = {
+  quoteId: string;
+  venueId: string;
+  venueLabel: string;
+  selectionId: string;
+  decimalOdds: number;
+  availableStake: number;
+};
+
 export type SimulatedFill = {
   quoteId: string;
   venueId: string;
   venueLabel: string;
   outcomeId: OutcomeQuote["outcomeId"];
+  decimalOdds: number;
+  filledStake: number;
+  estimatedGrossPayout: number;
+};
+
+export type GenericExecutionFill = {
+  quoteId: string;
+  venueId: string;
+  venueLabel: string;
+  selectionId: string;
   decimalOdds: number;
   filledStake: number;
   estimatedGrossPayout: number;
@@ -38,21 +64,65 @@ export type ExecutionRoute = {
   expectedValue: number;
 };
 
+export type GenericExecutionRoute = {
+  intent: GenericExecutionIntent;
+  eligibleQuotes: GenericExecutableQuote[];
+  fills: GenericExecutionFill[];
+  requestedStake: number;
+  filledStake: number;
+  unfilledStake: number;
+  weightedAverageOdds: number | null;
+  estimatedGrossPayout: number;
+  expectedValue: number;
+};
+
 export function buildExecutionRoute(intent: ExecutionIntent, quotes: SimulatedQuote[]): ExecutionRoute {
+  const genericRoute = buildGenericExecutionRoute(
+    { ...intent, selectionId: intent.outcomeId },
+    quotes.map((quote) => ({ ...quote, selectionId: quote.outcomeId })),
+  );
+
+  return {
+    ...genericRoute,
+    intent: { ...intent },
+    eligibleQuotes: genericRoute.eligibleQuotes.map((quote) => ({
+      quoteId: quote.quoteId,
+      venueId: quote.venueId,
+      venueLabel: quote.venueLabel,
+      decimalOdds: quote.decimalOdds,
+      availableStake: quote.availableStake,
+      outcomeId: intent.outcomeId,
+    })),
+    fills: genericRoute.fills.map((fill) => ({
+      quoteId: fill.quoteId,
+      venueId: fill.venueId,
+      venueLabel: fill.venueLabel,
+      decimalOdds: fill.decimalOdds,
+      filledStake: fill.filledStake,
+      estimatedGrossPayout: fill.estimatedGrossPayout,
+      outcomeId: intent.outcomeId,
+    })),
+  };
+}
+
+export function buildGenericExecutionRoute(
+  intent: GenericExecutionIntent,
+  quotes: GenericExecutableQuote[],
+): GenericExecutionRoute {
   validateIntent(intent);
   quotes.forEach(validateQuote);
 
   const eligibleQuotes = quotes
     .filter(
       (quote) =>
-        quote.outcomeId === intent.outcomeId &&
+        quote.selectionId === intent.selectionId &&
         quote.decimalOdds >= intent.minimumDecimalOdds &&
         quote.availableStake > 0,
     )
     .sort(compareQuotes);
 
   let remainingStake = intent.requestedStake;
-  const fills: SimulatedFill[] = [];
+  const fills: GenericExecutionFill[] = [];
 
   for (const quote of eligibleQuotes) {
     if (remainingStake <= 0) {
@@ -68,7 +138,7 @@ export function buildExecutionRoute(intent: ExecutionIntent, quotes: SimulatedQu
       quoteId: quote.quoteId,
       venueId: quote.venueId,
       venueLabel: quote.venueLabel,
-      outcomeId: quote.outcomeId,
+      selectionId: quote.selectionId,
       decimalOdds: quote.decimalOdds,
       filledStake,
       estimatedGrossPayout: roundMoney(filledStake * quote.decimalOdds),
@@ -97,7 +167,11 @@ export function buildExecutionRoute(intent: ExecutionIntent, quotes: SimulatedQu
   };
 }
 
-function validateIntent(intent: ExecutionIntent) {
+function validateIntent(intent: GenericExecutionIntent) {
+  if (!intent.selectionId) {
+    throw new Error("Execution selection identifier is required.");
+  }
+
   if (!isPositiveFinite(intent.requestedStake)) {
     throw new Error("Execution requested stake must be greater than 0.");
   }
@@ -111,21 +185,25 @@ function validateIntent(intent: ExecutionIntent) {
   }
 }
 
-function validateQuote(quote: SimulatedQuote) {
+function validateQuote(quote: GenericExecutableQuote) {
   if (!quote.quoteId || !quote.venueId || !quote.venueLabel) {
-    throw new Error("Simulated quote must include quote and venue identifiers.");
+    throw new Error("Execution quote must include quote and venue identifiers.");
+  }
+
+  if (!quote.selectionId) {
+    throw new Error(`Execution quote ${quote.quoteId} selection identifier is required.`);
   }
 
   if (!isPositiveFinite(quote.decimalOdds) || quote.decimalOdds <= 1) {
-    throw new Error(`Simulated quote ${quote.quoteId} decimal odds must be greater than 1.`);
+    throw new Error(`Execution quote ${quote.quoteId} decimal odds must be greater than 1.`);
   }
 
   if (!isPositiveFinite(quote.availableStake)) {
-    throw new Error(`Simulated quote ${quote.quoteId} available liquidity must be greater than 0.`);
+    throw new Error(`Execution quote ${quote.quoteId} available liquidity must be greater than 0.`);
   }
 }
 
-function compareQuotes(left: SimulatedQuote, right: SimulatedQuote): number {
+function compareQuotes(left: GenericExecutableQuote, right: GenericExecutableQuote): number {
   if (left.decimalOdds !== right.decimalOdds) {
     return right.decimalOdds - left.decimalOdds;
   }

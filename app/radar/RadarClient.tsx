@@ -17,6 +17,8 @@ import {
   scoreObservation,
 } from "../../src/lib/marketRadar/strategyEngine";
 import { buildMappedObservationPaperQuote, effectiveObservationRouteState, evaluatePaperEligibility } from "../../src/lib/marketRadar/paperRoute";
+import { buildRealExecutableQuotes, buildRealPaperRoute, type RealQuoteBuildResult } from "../../src/lib/marketRadar/realQuotes";
+import type { GenericExecutionRoute } from "../../src/lib/execution/router";
 import { PYTHON_STRATEGY_SAMPLES } from "../../src/lib/marketRadar/pythonSamples";
 import {
   PYTHON_STRATEGY_LIMITS,
@@ -92,6 +94,10 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const [savedPythonScripts, setSavedPythonScripts] = useState<SavedPythonScript[]>([]);
   const [localStorageLoaded, setLocalStorageLoaded] = useState(false);
   const [pythonRun, setPythonRun] = useState<PythonRunState>(DEFAULT_PYTHON_RUN_STATE);
+  const [realUserProbability, setRealUserProbability] = useState("55");
+  const [realTargetStake, setRealTargetStake] = useState("5000");
+  const [realMinimumOdds, setRealMinimumOdds] = useState("2.20");
+  const [realRoute, setRealRoute] = useState<GenericExecutionRoute | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -230,6 +236,34 @@ export default function RadarClient({ initialSnapshot }: Props) {
     runMode: pythonRunMode,
     now: snapshot.observedAt,
   });
+  const realQuoteSourceStatuses = useMemo(
+    () =>
+      Object.fromEntries(
+        snapshot.health.map((health) => [health.venueId, health.status === "live" ? "live" : "captured"] as const),
+      ),
+    [snapshot.health],
+  );
+  const realQuoteResult = useMemo(
+    () =>
+      buildRealExecutableQuotes({
+        observations: snapshot.observations,
+        now: evaluationNow,
+        sourceStatuses: realQuoteSourceStatuses,
+      }),
+    [evaluationNow, realQuoteSourceStatuses, snapshot.observations],
+  );
+  const realUserProbabilityValue = Number(realUserProbability) / 100;
+  const realTargetStakeValue = Number(realTargetStake);
+  const realMinimumOddsValue = Number(realMinimumOdds);
+  const canBuildRealRoute =
+    realQuoteResult.status === "ready" &&
+    Number.isFinite(realUserProbabilityValue) &&
+    realUserProbabilityValue > 0 &&
+    realUserProbabilityValue <= 1 &&
+    Number.isFinite(realTargetStakeValue) &&
+    realTargetStakeValue > 0 &&
+    Number.isFinite(realMinimumOddsValue) &&
+    realMinimumOddsValue > 1;
 
   async function refresh() {
     setIsRefreshing(true);
@@ -276,6 +310,24 @@ export default function RadarClient({ initialSnapshot }: Props) {
       ...current,
       [selected.observation.mapping!.id]: Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) / 100 : 0,
     }));
+  }
+
+  function buildRealRoute() {
+    if (realQuoteResult.status !== "ready" || !canBuildRealRoute) {
+      return;
+    }
+
+    setRealRoute(
+      buildRealPaperRoute(
+        {
+          selectionId: realQuoteResult.canonicalSelectionId,
+          requestedStake: realTargetStakeValue,
+          minimumDecimalOdds: realMinimumOddsValue,
+          userProbability: realUserProbabilityValue,
+        },
+        realQuoteResult.quotes,
+      ),
+    );
   }
 
   function loadPythonSample(sampleId: string) {
@@ -568,6 +620,27 @@ export default function RadarClient({ initialSnapshot }: Props) {
           ) : (
             <div className="empty-state compact"><p>Select a market after clearing or changing filters.</p></div>
           )}
+          <RealVenueQuotesPanel
+            result={realQuoteResult}
+            route={realRoute}
+            userProbability={realUserProbability}
+            targetStake={realTargetStake}
+            minimumOdds={realMinimumOdds}
+            canBuild={canBuildRealRoute}
+            onUserProbabilityChange={(value) => {
+              setRealUserProbability(value);
+              setRealRoute(null);
+            }}
+            onTargetStakeChange={(value) => {
+              setRealTargetStake(value);
+              setRealRoute(null);
+            }}
+            onMinimumOddsChange={(value) => {
+              setRealMinimumOdds(value);
+              setRealRoute(null);
+            }}
+            onBuild={buildRealRoute}
+          />
           <div className="lab-tabs" role="tablist" aria-label="Strategy Lab mode">
             <button type="button" className={labTab === "built-in" ? "active" : ""} onClick={() => setLabTab("built-in")}>Built-in</button>
             <button type="button" className={labTab === "python" ? "active" : ""} onClick={() => setLabTab("python")}>Python Strategy</button>
@@ -697,6 +770,95 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="mini-metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function RealVenueQuotesPanel({
+  result,
+  route,
+  userProbability,
+  targetStake,
+  minimumOdds,
+  canBuild,
+  onUserProbabilityChange,
+  onTargetStakeChange,
+  onMinimumOddsChange,
+  onBuild,
+}: {
+  result: RealQuoteBuildResult;
+  route: GenericExecutionRoute | null;
+  userProbability: string;
+  targetStake: string;
+  minimumOdds: string;
+  canBuild: boolean;
+  onUserProbabilityChange: (value: string) => void;
+  onTargetStakeChange: (value: string) => void;
+  onMinimumOddsChange: (value: string) => void;
+  onBuild: () => void;
+}) {
+  const quotes = result.quotes;
+  const stateLabel =
+    result.status === "ready"
+      ? quotes.length >= 2
+        ? "Two or more exact venues available"
+        : "One exact venue available"
+      : result.status === "quotes-stale"
+        ? "Quotes stale"
+        : "No exact cross-venue overlap";
+
+  return (
+    <section className="real-quotes-panel" aria-label="Real venue quotes">
+      <div className="panel-heading compact-heading">
+        <div>
+          <h3>Real venue quotes</h3>
+          <span>Real read-only quotes · paper execution only</span>
+        </div>
+        <strong>{stateLabel}</strong>
+      </div>
+      {quotes.length > 0 ? (
+        <div className="real-quote-list">
+          {quotes.map((quote) => (
+            <div className="real-quote-row" key={quote.quoteId}>
+              <strong>{quote.venueLabel}</strong>
+              <span>{quote.provenance.canonicalSelectionId}</span>
+              <Metric label="Ask" value={fmtProb(1 / quote.decimalOdds)} />
+              <Metric label="Odds" value={quote.decimalOdds.toFixed(3)} />
+              <Metric label="Ask notional" value={`$${quote.availableStake.toFixed(0)}`} />
+              <Metric label="Age" value={fmtAge(quote.provenance.observedAt, new Date().toISOString())} />
+              <span className="quote-badge">{quote.provenance.status}</span>
+              <code>{quote.provenance.mappingId}</code>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="radar-note">No exact real quotes are available for routing.</p>
+      )}
+      {result.status === "no-exact-overlap" || result.status === "quotes-stale" ? <p className="radar-note">{result.reason}</p> : null}
+      <div className="real-route-controls">
+        <label><span>Your probability</span><input aria-label="Real route user probability" inputMode="decimal" min="0" max="100" type="number" value={userProbability} onChange={(event) => onUserProbabilityChange(event.target.value)} /></label>
+        <label><span>Paper target stake</span><input aria-label="Real route paper target stake" inputMode="decimal" min="1" type="number" value={targetStake} onChange={(event) => onTargetStakeChange(event.target.value)} /></label>
+        <label><span>Minimum decimal odds</span><input aria-label="Real route minimum decimal odds" inputMode="decimal" min="1.01" step="0.01" type="number" value={minimumOdds} onChange={(event) => onMinimumOddsChange(event.target.value)} /></label>
+        <button className="button-primary" type="button" disabled={!canBuild} onClick={onBuild}>Build paper route</button>
+      </div>
+      {route ? (
+        <div className="real-route-result">
+          <div className="metrics-row compact">
+            <Metric label="Requested" value={`$${route.requestedStake.toFixed(0)}`} />
+            <Metric label="Filled" value={`$${route.filledStake.toFixed(0)}`} />
+            <Metric label="Unfilled" value={`$${route.unfilledStake.toFixed(0)}`} />
+            <Metric label="Weighted odds" value={route.weightedAverageOdds === null ? "-" : route.weightedAverageOdds.toFixed(3)} />
+            <Metric label="Gross payout" value={`$${route.estimatedGrossPayout.toFixed(0)}`} />
+            <Metric label="Expected value" value={`$${route.expectedValue.toFixed(0)}`} />
+          </div>
+          {route.unfilledStake > 0 ? <p className="radar-note">Visible capacity insufficient for the full requested stake.</p> : null}
+          <div className="real-fill-list">
+            {route.fills.map((fill) => (
+              <p key={fill.quoteId}>{fill.venueLabel}: ${fill.filledStake.toFixed(0)} at {fill.decimalOdds.toFixed(3)}</p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function SelectedMarketSummary({
