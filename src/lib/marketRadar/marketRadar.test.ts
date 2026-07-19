@@ -17,6 +17,12 @@ import {
   validatePythonStrategyResult,
   validatePythonStrategyRunInput,
 } from "./pythonStrategy";
+import {
+  classifyMarketRelevance,
+  observationMatchesMarketScope,
+  sortScopedObservations,
+  type MarketScope,
+} from "./marketRelevance";
 import { validateMapping, validateObservation } from "./validation";
 import { normalizeSxBetMarket } from "./sxBetNormalize";
 import { normalizePolymarketOutcome } from "./polymarketNormalize";
@@ -324,6 +330,137 @@ describe("python strategy contract", () => {
   });
 });
 
+describe("market relevance presentation scope", () => {
+  it("includes World Cup and soccer observations in the default scope", () => {
+    expect(classifyMarketRelevance(observation({ category: "FIFA World Cup", sport: null, title: "Spain vs France" }))).toBe("world-cup-soccer");
+    expect(classifyMarketRelevance(observation({ category: null, sport: "Soccer", title: "Inter Miami vs LAFC" }))).toBe("world-cup-soccer");
+  });
+
+  it("keeps other explicit sports out of the default soccer scope but inside all sports", () => {
+    const nba = mappedObservation({ sport: "Basketball", category: "NBA", title: "Lakers vs Celtics" });
+    expect(classifyMarketRelevance(nba)).toBe("other-sports");
+    expect(observationMatchesMarketScope(nba, "world-cup-soccer")).toBe(false);
+    expect(observationMatchesMarketScope(nba, "all-sports")).toBe(true);
+  });
+
+  it("excludes politics and crypto from sports scopes", () => {
+    const politics = mappedObservation({ category: "Politics", sport: null, title: "Will the president win reelection?" });
+    const crypto = mappedObservation({ category: "Crypto", sport: null, title: "Will Bitcoin hit 100k?" });
+    expect(classifyMarketRelevance(politics)).toBe("non-sports");
+    expect(classifyMarketRelevance(crypto)).toBe("non-sports");
+    expect(observationMatchesMarketScope(politics, "all-sports")).toBe(false);
+    expect(observationMatchesMarketScope(crypto, "all-sports")).toBe(false);
+  });
+
+  it("excludes geopolitical conflict markets from sports scopes", () => {
+    const conflict = mappedObservation({
+      category: "Geopolitics",
+      sport: null,
+      title: "China x India military clash by December 31, 2026?",
+      resolutionSummary: "Military personnel will qualify only after a direct combat encounter.",
+    });
+    expect(classifyMarketRelevance(conflict)).toBe("non-sports");
+    expect(observationMatchesMarketScope(conflict, "all-sports")).toBe(false);
+  });
+
+  it("does not treat ambiguous football as default soccer without association-football context", () => {
+    const ambiguous = mappedObservation({ sport: "Football", category: null, title: "Team A vs Team B" });
+    const nfl = mappedObservation({ sport: "Football", category: "NFL", title: "Bills vs Jets" });
+    const premierLeague = mappedObservation({ sport: "Football", category: "Premier League", title: "Arsenal vs Chelsea" });
+    expect(classifyMarketRelevance(ambiguous)).toBe("other-sports");
+    expect(classifyMarketRelevance(nfl)).toBe("other-sports");
+    expect(classifyMarketRelevance(premierLeague)).toBe("world-cup-soccer");
+  });
+
+  it("excludes generic yes/no markets without explicit sports context", () => {
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will it happen?", outcomeLabel: "Yes" }))).toBe("non-sports");
+  });
+
+  it("prefers strong sports title signals over generic negative title keywords when metadata is not useful", () => {
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Ukraine qualify for the World Cup?" }))).toBe("world-cup-soccer");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Combat sports: UFC main event" }))).toBe("other-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Fed Cup tennis" }))).toBe("other-sports");
+  });
+
+  it("handles generic Sports metadata without overriding explicit non-sport metadata", () => {
+    const genericSports = mappedObservation({ sport: null, category: "Sports", title: "Team A vs Team B" });
+    const sportsWorldCup = mappedObservation({ sport: null, category: "Sports", title: "Will France win the World Cup?" });
+    const politicsWorldCup = mappedObservation({ sport: null, category: "Politics", title: "Will a World Cup leader summit happen?" });
+
+    expect(classifyMarketRelevance(genericSports)).toBe("other-sports");
+    expect(observationMatchesMarketScope(genericSports, "all-sports")).toBe(true);
+    expect(classifyMarketRelevance(sportsWorldCup)).toBe("world-cup-soccer");
+    expect(classifyMarketRelevance(politicsWorldCup)).toBe("non-sports");
+    expect(observationMatchesMarketScope(politicsWorldCup, "all-sports")).toBe(false);
+  });
+
+  it("keeps generic politics, crypto, and yes/no examples excluded", () => {
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Trump win the election?" }))).toBe("non-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Bitcoin hit 100k?" }))).toBe("non-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will it happen?" }))).toBe("non-sports");
+  });
+
+  it("applies scope behavior without deleting imported observations", () => {
+    const soccer = mappedObservation({ sport: "Soccer", externalMarketId: "soccer" });
+    const tennis = mappedObservation({ sport: "Tennis", category: "Tennis", externalMarketId: "tennis" });
+    const politics = mappedObservation({ category: "Politics", sport: null, externalMarketId: "politics" });
+    const observations = [soccer, tennis, politics];
+    expect(scopedMarketIds(observations, "world-cup-soccer")).toEqual(["soccer"]);
+    expect(scopedMarketIds(observations, "all-sports")).toEqual(["soccer", "tennis"]);
+    expect(scopedMarketIds(observations, "all-imported")).toEqual(["soccer", "tennis", "politics"]);
+    expect(observations).toHaveLength(3);
+  });
+
+  it("orders the default soccer scope by World Cup/FIFA, mappings, soccer, then score", () => {
+    const fifa = rankedItem(mappedObservation({ category: "FIFA", externalMarketId: "fifa", mapping: null }), 1);
+    const mapped = rankedItem(mappedObservation({ sport: "Soccer", externalMarketId: "mapped" }), 3);
+    const soccerHighScore = rankedItem(mappedObservation({ sport: "Soccer", externalMarketId: "soccer-high", mapping: null }), 100);
+    const soccerLowScore = rankedItem(mappedObservation({ sport: "Soccer", externalMarketId: "soccer-low", mapping: null }), 2);
+    expect(sortScopedObservations([soccerLowScore, soccerHighScore, mapped, fifa], "world-cup-soccer").map((item) => item.observation.externalMarketId)).toEqual([
+      "fifa",
+      "mapped",
+      "soccer-high",
+      "soccer-low",
+    ]);
+  });
+
+  it("keeps truthful scoped, filtered, and displayed counts", () => {
+    const imported = [
+      mappedObservation({ sport: "Soccer", externalMarketId: "soccer-1" }),
+      mappedObservation({ sport: "Soccer", externalMarketId: "soccer-2", venueId: "polymarket" }),
+      mappedObservation({ sport: "Basketball", category: "NBA", externalMarketId: "nba" }),
+      mappedObservation({ category: "Crypto", sport: null, externalMarketId: "crypto" }),
+    ];
+    const scoped = imported.filter((item) => observationMatchesMarketScope(item, "world-cup-soccer"));
+    const filtered = scoped.filter((item) => item.venueId === "test-venue");
+    const displayed = filtered.slice(0, 30);
+    expect({ imported: imported.length, scoped: scoped.length, filtered: filtered.length, displayed: displayed.length }).toEqual({
+      imported: 4,
+      scoped: 2,
+      filtered: 1,
+      displayed: 1,
+    });
+  });
+
+  it("passes only the current scoped and filtered observations to Python filtered-batch mode", () => {
+    const soccer = exactMappedObservation({ sport: "Soccer", externalMarketId: "soccer", availableAskSize: 100 });
+    const shallowSoccer = exactMappedObservation({ sport: "Soccer", externalMarketId: "shallow", availableAskSize: 1 });
+    const tennis = exactMappedObservation({ sport: "Tennis", category: "Tennis", externalMarketId: "tennis", availableAskSize: 100 });
+    const currentScopedAndFiltered = [soccer, shallowSoccer, tennis]
+      .filter((item) => observationMatchesMarketScope(item, "world-cup-soccer"))
+      .filter((item) => (item.availableAskSize ?? 0) >= 50);
+    const context = buildPythonStrategyContext({
+      selectedObservation: tennis,
+      observations: currentScopedAndFiltered,
+      selectedStrategyParameters: BUILT_IN_RECIPES[0],
+      runMode: "filtered-batch",
+      now: "2026-07-18T20:00:00.000Z",
+    });
+    expect(context.observations.map((item) => item.externalMarketId)).toEqual(["soccer"]);
+    expect(context.selectedObservation?.externalMarketId).toBe("tennis");
+  });
+});
+
 describe("interestingness and strategy recipes", () => {
   it("scores observations deterministically", () => {
     const score = scoreObservation({
@@ -486,5 +623,25 @@ function peerObservation(): ObservationWithMapping {
       reviewedAt: "2026-07-18T00:00:00.000Z",
     },
     routeState: "mapped",
+  };
+}
+
+function mappedObservation(overrides: Partial<ExternalMarketObservation> & { mapping?: MarketMapping | null } = {}): ObservationWithMapping {
+  const { mapping, ...observationOverrides } = overrides;
+  return {
+    ...observation(observationOverrides),
+    mapping: mapping === undefined ? exactMappedObservation().mapping : mapping,
+    routeState: mapping === null ? "context-only" : "mapped",
+  };
+}
+
+function scopedMarketIds(observations: ObservationWithMapping[], scope: MarketScope): string[] {
+  return observations.filter((item) => observationMatchesMarketScope(item, scope)).map((item) => item.externalMarketId);
+}
+
+function rankedItem(observation: ObservationWithMapping, score: number) {
+  return {
+    observation,
+    score: { total: score },
   };
 }

@@ -25,6 +25,12 @@ import {
   validatePythonStrategyResult,
   validatePythonStrategyRunInput,
 } from "../../src/lib/marketRadar/pythonStrategy";
+import {
+  marketScopeLabel,
+  observationMatchesMarketScope,
+  sortScopedObservations,
+  type MarketScope,
+} from "../../src/lib/marketRadar/marketRelevance";
 import { RADAR_TXLINE_REFERENCE } from "../../src/lib/marketRadar/txlineReference";
 
 type Props = { initialSnapshot: RadarSnapshot };
@@ -71,6 +77,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const [venue, setVenue] = useState("all");
   const [status, setStatus] = useState("all");
   const [category, setCategory] = useState("all");
+  const [marketScope, setMarketScope] = useState<MarketScope>("world-cup-soccer");
   const [text, setText] = useState("");
   const [minimumLiquidity, setMinimumLiquidity] = useState("0");
   const [selectedRecipeId, setSelectedRecipeId] = useState("stale-market");
@@ -137,8 +144,15 @@ export default function RadarClient({ initialSnapshot }: Props) {
   const duelRecipe = recipes.find((recipe) => recipe.id === duelRecipeId) ?? recipes[1];
   const evaluationNow = Date.parse(snapshot.observedAt);
   const categories = useMemo(
-    () => Array.from(new Set(snapshot.observations.map((item) => item.category ?? item.sport ?? "Uncategorized"))).sort(),
-    [snapshot.observations],
+    () =>
+      Array.from(
+        new Set(
+          snapshot.observations
+            .filter((item) => observationMatchesMarketScope(item, marketScope))
+            .map((item) => item.category ?? item.sport ?? "Uncategorized"),
+        ),
+      ).sort(),
+    [marketScope, snapshot.observations],
   );
   const ranked = useMemo(
     () =>
@@ -164,7 +178,11 @@ export default function RadarClient({ initialSnapshot }: Props) {
         .sort((left, right) => right.score.total - left.score.total),
     [evaluationNow, selectedRecipe, snapshot.observations, userBeliefs],
   );
-  const filtered = ranked.filter(({ effectiveRouteState, observation }) => {
+  const scoped = useMemo(
+    () => sortScopedObservations(ranked.filter(({ observation }) => observationMatchesMarketScope(observation, marketScope)), marketScope),
+    [marketScope, ranked],
+  );
+  const filtered = scoped.filter(({ effectiveRouteState, observation }) => {
     const haystack = `${observation.title} ${observation.outcomeLabel} ${observation.venueLabel}`.toLowerCase();
     const askDepth = observation.availableAskSize ?? 0;
     const categoryLabel = observation.category ?? observation.sport ?? "Uncategorized";
@@ -239,6 +257,16 @@ export default function RadarClient({ initialSnapshot }: Props) {
     setCategory("all");
     setText("");
     setMinimumLiquidity("0");
+  }
+
+  function showMarketScope(scope: MarketScope) {
+    clearFilters();
+    setMarketScope(scope);
+  }
+
+  function changeMarketScope(scope: MarketScope) {
+    setMarketScope(scope);
+    setCategory("all");
   }
 
   function updateBelief(value: string) {
@@ -429,7 +457,8 @@ export default function RadarClient({ initialSnapshot }: Props) {
 
       <section className="radar-summary-strip" aria-label="Radar summary">
         <Metric label="Imported observations" value={snapshot.observations.length.toString()} />
-        <Metric label="Matching observations" value={filtered.length.toString()} />
+        <Metric label="Relevant scope" value={`${scoped.length} of ${snapshot.observations.length}`} />
+        <Metric label="Matching observations" value={`${filtered.length} ${marketScopeLabel(marketScope)}`} />
         <Metric label="Displayed" value={`${displayed.length} of ${filtered.length}`} />
         <Metric label="Source status" value={summarizeHealth(snapshot.health)} />
         <Metric label="Snapshot time" value={formatTimestamp(snapshot.observedAt)} />
@@ -452,6 +481,14 @@ export default function RadarClient({ initialSnapshot }: Props) {
       </section>
 
       <section className="radar-filters" aria-label="Radar filters">
+        <label>
+          <span>Market scope</span>
+          <select value={marketScope} onChange={(event) => changeMarketScope(event.target.value as MarketScope)} aria-label="Market scope filter">
+            <option value="world-cup-soccer">World Cup & soccer</option>
+            <option value="all-sports">All sports</option>
+            <option value="all-imported">All imported</option>
+          </select>
+        </label>
         <label>
           <span>Venue</span>
           <select value={venue} onChange={(event) => setVenue(event.target.value)} aria-label="Venue filter">
@@ -495,8 +532,12 @@ export default function RadarClient({ initialSnapshot }: Props) {
           {filtered.length === 0 ? (
             <div className="empty-state">
               <h2>No markets match these filters</h2>
-              <p>Clear filters to recover the imported Radar observations.</p>
-              <button type="button" className="button-primary" onClick={clearFilters}>Clear filters</button>
+              <p>Broaden the market scope or clear the ordinary filters to recover imported Radar observations.</p>
+              <div className="empty-actions">
+                <button type="button" className="button-primary" onClick={() => showMarketScope("all-sports")}>Show all sports</button>
+                <button type="button" className="button-secondary" onClick={() => showMarketScope("all-imported")}>Show all imported</button>
+                <button type="button" className="button-ghost" onClick={clearFilters} disabled={!hasActiveFilters}>Clear filters</button>
+              </div>
             </div>
           ) : null}
           {displayed.map(({ effectiveRouteState, observation, score, evaluation }) => (
