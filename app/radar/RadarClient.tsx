@@ -264,6 +264,11 @@ export default function RadarClient({ initialSnapshot }: Props) {
     setMarketScope(scope);
   }
 
+  function changeMarketScope(scope: MarketScope) {
+    setMarketScope(scope);
+    setCategory("all");
+  }
+
   function updateBelief(value: string) {
     if (!selected?.observation.mapping) return;
     const parsed = Number(value);
@@ -478,7 +483,7 @@ export default function RadarClient({ initialSnapshot }: Props) {
       <section className="radar-filters" aria-label="Radar filters">
         <label>
           <span>Market scope</span>
-          <select value={marketScope} onChange={(event) => setMarketScope(event.target.value as MarketScope)} aria-label="Market scope filter">
+          <select value={marketScope} onChange={(event) => changeMarketScope(event.target.value as MarketScope)} aria-label="Market scope filter">
             <option value="world-cup-soccer">World Cup & soccer</option>
             <option value="all-sports">All sports</option>
             <option value="all-imported">All imported</option>

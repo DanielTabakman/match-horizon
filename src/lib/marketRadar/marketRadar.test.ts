@@ -376,6 +376,30 @@ describe("market relevance presentation scope", () => {
     expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will it happen?", outcomeLabel: "Yes" }))).toBe("non-sports");
   });
 
+  it("prefers strong sports title signals over generic negative title keywords when metadata is not useful", () => {
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Ukraine qualify for the World Cup?" }))).toBe("world-cup-soccer");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Combat sports: UFC main event" }))).toBe("other-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Fed Cup tennis" }))).toBe("other-sports");
+  });
+
+  it("handles generic Sports metadata without overriding explicit non-sport metadata", () => {
+    const genericSports = mappedObservation({ sport: null, category: "Sports", title: "Team A vs Team B" });
+    const sportsWorldCup = mappedObservation({ sport: null, category: "Sports", title: "Will France win the World Cup?" });
+    const politicsWorldCup = mappedObservation({ sport: null, category: "Politics", title: "Will a World Cup leader summit happen?" });
+
+    expect(classifyMarketRelevance(genericSports)).toBe("other-sports");
+    expect(observationMatchesMarketScope(genericSports, "all-sports")).toBe(true);
+    expect(classifyMarketRelevance(sportsWorldCup)).toBe("world-cup-soccer");
+    expect(classifyMarketRelevance(politicsWorldCup)).toBe("non-sports");
+    expect(observationMatchesMarketScope(politicsWorldCup, "all-sports")).toBe(false);
+  });
+
+  it("keeps generic politics, crypto, and yes/no examples excluded", () => {
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Trump win the election?" }))).toBe("non-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will Bitcoin hit 100k?" }))).toBe("non-sports");
+    expect(classifyMarketRelevance(observation({ sport: null, category: null, title: "Will it happen?" }))).toBe("non-sports");
+  });
+
   it("applies scope behavior without deleting imported observations", () => {
     const soccer = mappedObservation({ sport: "Soccer", externalMarketId: "soccer" });
     const tennis = mappedObservation({ sport: "Tennis", category: "Tennis", externalMarketId: "tennis" });

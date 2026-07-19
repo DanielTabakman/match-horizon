@@ -61,6 +61,8 @@ const OTHER_SPORT_PATTERNS = [
   ...AMERICAN_FOOTBALL_PATTERNS,
 ];
 
+const GENERIC_SPORT_METADATA_PATTERNS = [/\bsports?\b/i];
+
 const NON_SPORT_METADATA_PATTERNS = [
   /\bpolitics?\b/i,
   /\belections?\b/i,
@@ -121,18 +123,23 @@ export function classifyMarketRelevance(observation: Pick<ObservationWithMapping
   if (metadata && matchesAny(metadata, NON_SPORT_METADATA_PATTERNS)) {
     return "non-sports";
   }
+  if (metadata && matchesAny(metadata, GENERIC_SPORT_METADATA_PATTERNS)) {
+    return matchesAny(text, SOCCER_TEXT_PATTERNS) && !matchesAny(text, AMERICAN_FOOTBALL_PATTERNS)
+      ? "world-cup-soccer"
+      : "other-sports";
+  }
 
-  if (matchesAny(text, NON_SPORT_TEXT_PATTERNS)) {
-    return "non-sports";
-  }
-  if (isGenericYesNo(observation.title, observation.resolutionSummary)) {
-    return "non-sports";
-  }
   if (matchesAny(text, SOCCER_TEXT_PATTERNS) && !matchesAny(text, AMERICAN_FOOTBALL_PATTERNS)) {
     return "world-cup-soccer";
   }
   if (matchesAny(text, OTHER_SPORT_PATTERNS)) {
     return "other-sports";
+  }
+  if (matchesAny(text, NON_SPORT_TEXT_PATTERNS)) {
+    return "non-sports";
+  }
+  if (isGenericYesNo(observation.title, observation.resolutionSummary)) {
+    return "non-sports";
   }
 
   return "non-sports";
