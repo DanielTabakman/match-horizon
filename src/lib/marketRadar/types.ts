@@ -1,5 +1,5 @@
 import type { OutcomeQuote } from "../domain";
-import type { SimulatedQuote } from "../execution/router";
+import type { GenericExecutableQuote } from "../execution/router";
 
 export type ExternalMarketObservation = {
   venueId: string;
@@ -30,10 +30,11 @@ export type ExternalMarketObservation = {
   rawStatus: string;
 };
 
-export type MappingEquivalence = "exact" | "related" | "not-equivalent";
+export type MappingEquivalence = "settlement-exact" | "normal-completion-comparable" | "related" | "not-equivalent";
 
 export type MarketMapping = {
   id: string;
+  canonicalSelectionId: string | null;
   txlineFixtureId: string | null;
   txlineOutcomeId: OutcomeQuote["outcomeId"] | null;
   venueId: string;
@@ -64,9 +65,12 @@ export type PaperRouteProvenance = {
   externalOutcomeId: string;
   observedAt: string;
   mappingId: string;
+  canonicalSelectionId: string;
+  sourceUrl: string | null;
+  status: "live" | "captured";
 };
 
-export type ProvenancedSimulatedQuote = SimulatedQuote & {
+export type ProvenancedGenericQuote = GenericExecutableQuote & {
   provenance: PaperRouteProvenance;
 };
 

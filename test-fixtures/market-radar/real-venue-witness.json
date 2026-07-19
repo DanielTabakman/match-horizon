@@ -1,0 +1,69 @@
+{
+  "witnessId": "world-cup-2026-argentina-outright-2026-07-19",
+  "reviewedAt": "2026-07-19T03:00:00.000Z",
+  "canonicalSelectionId": "fifa-world-cup-2026-winner:argentina",
+  "conclusion": "Normal-completion comparable overlap exists for ordinary Argentina-wins-2026-World-Cup semantics across SX Bet, Kalshi, and Polymarket. Public evidence does not prove settlement-equivalent exceptional cancellation, abandonment, void, refund, Other, or deadline handling.",
+  "settlementEquivalenceConclusion": "Kalshi exposes a 2028 technical close/expiration while also exposing a 2026 expected expiration and early close after title holder declaration. Polymarket exposes an Other outcome for cancellation/not completed by 2026-10-13. SX Bet exposes NO_GAME void treatment in public payload/rules. These differences mean the group is not settlement-exact.",
+  "observations": [
+    {
+      "venue": "SX Bet",
+      "marketId": "0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1",
+      "outcomeId": "outcome-one",
+      "title": "Argentina vs The Field - Outrights - World Cup",
+      "normalizedEvent": "2026 FIFA World Cup outright winner",
+      "normalizedSelection": "Argentina wins tournament",
+      "startsOrClosesTime": "2026-07-22T12:00:00.000Z",
+      "sourceUrl": "https://sx.bet/markets/0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1",
+      "rawAskProbability": 0.43,
+      "rawAskNotional": 151.16,
+      "decision": "normal-completion-comparable",
+      "resolutionNotes": "Tournament-winner exposure: Argentina vs field for World Cup outright. Exceptional cancellation, abandonment, or deadline handling may differ by venue."
+    },
+    {
+      "venue": "Kalshi",
+      "marketId": "KXMENWORLDCUP-26-AR",
+      "outcomeId": "yes",
+      "title": "Will the Argentina win the 2026 Men's World Cup?",
+      "normalizedEvent": "2026 Men's/FIFA World Cup outright winner",
+      "normalizedSelection": "Argentina wins tournament",
+      "startsOrClosesTime": "2028-07-18T14:00:00.000Z",
+      "sourceUrl": "https://kalshi.com/markets/KXMENWORLDCUP-26-AR",
+      "rawAskProbability": 0.418,
+      "rawAskNotional": 184555.69,
+      "decision": "normal-completion-comparable",
+      "resolutionNotes": "YES resolves if Argentina wins the 2026 Men's World Cup under normal completion; exceptional treatment is not proven settlement-equivalent."
+    },
+    {
+      "venue": "Polymarket",
+      "marketId": "0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f",
+      "outcomeId": "18812649149814341758733697580460697418474693998558159483117100240528657629879",
+      "title": "Will Argentina win the 2026 FIFA World Cup?",
+      "normalizedEvent": "2026 FIFA World Cup outright winner",
+      "normalizedSelection": "Argentina wins tournament",
+      "startsOrClosesTime": "2026-07-20T00:00:00.000Z",
+      "sourceUrl": "https://polymarket.com/event/world-cup-winner",
+      "rawAskProbability": 0.41,
+      "rawAskNotional": 2583,
+      "decision": "normal-completion-comparable",
+      "resolutionNotes": "YES resolves according to the national team that wins the 2026 FIFA World Cup under normal completion; cancellation or non-completion can resolve to Other."
+    }
+  ],
+  "rejectedCandidates": [
+    {
+      "venue": "SX Bet",
+      "marketId": "0xd3fa7bceaaccd813858b5b7ff33a2fba93cc7f05a583883719b9367cc94c10f4",
+      "outcomeId": "outcome-one",
+      "title": "Spain vs The Field - Outrights - World Cup",
+      "decision": "related",
+      "resolutionNotes": "Related to Spain tournament winner but not equivalent to the historical France-Spain match result."
+    },
+    {
+      "venue": "Kalshi",
+      "marketId": "KXWCBTTS-26JUL19ESPARG-BTTS",
+      "outcomeId": "yes",
+      "title": "Reg Time: Both Teams To Score",
+      "decision": "not-equivalent",
+      "resolutionNotes": "Single-match both-teams-score market, not tournament winner."
+    }
+  ]
+}

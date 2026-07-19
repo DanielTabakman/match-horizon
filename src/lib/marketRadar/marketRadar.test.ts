@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExternalMarketObservation, MarketMapping, ObservationWithMapping } from "./types";
 import { mapObservation } from "./mappings";
 import { buildMappedObservationPaperQuote, effectiveObservationRouteState, evaluatePaperEligibility } from "./paperRoute";
@@ -26,11 +26,28 @@ import {
 import { validateMapping, validateObservation } from "./validation";
 import { normalizeSxBetMarket } from "./sxBetNormalize";
 import { normalizePolymarketOutcome } from "./polymarketNormalize";
+import { normalizeKalshiMarket } from "./kalshiNormalize";
+import type { KalshiMarket, KalshiOrderbook } from "./kalshiNormalize";
+import { buildRealExecutableQuotes, buildRealPaperRoute } from "./realQuotes";
 import { RADAR_TXLINE_REFERENCE } from "./txlineReference";
 import sxRawFixture from "../../../test-fixtures/market-radar/sx-bet-raw-sanitized.json";
 import polymarketRawFixture from "../../../test-fixtures/market-radar/polymarket-raw-sanitized.json";
+import kalshiRawFixture from "../../../test-fixtures/market-radar/kalshi-raw-sanitized.json";
 
 const now = Date.parse("2026-07-18T20:00:00.000Z");
+const kalshiMarket = kalshiRawFixture.markets[0] as KalshiMarket;
+const kalshiOrderbook = kalshiRawFixture.orderbook as KalshiOrderbook;
+const sxTargetMarketHash = "0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1";
+const kalshiTargetTicker = "KXMENWORLDCUP-26-AR";
+const polymarketTargetConditionId = "0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f";
+const polymarketTargetTokenId = "18812649149814341758733697580460697418474693998558159483117100240528657629879";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  delete process.env.MARKET_RADAR_FORCE_FALLBACK;
+});
 
 describe("market radar contracts", () => {
   it("validates normalized observations", () => {
@@ -38,20 +55,38 @@ describe("market radar contracts", () => {
     expect(() => validateObservation(observation({ bestAskProbability: 1.4 }))).toThrow("bestAskProbability");
   });
 
-  it("requires exact mappings to name the TxLINE fixture and outcome", () => {
+  it("requires comparable mappings to name a canonical selection", () => {
     const mapping: MarketMapping = {
       id: "bad",
+      canonicalSelectionId: null,
       txlineFixtureId: null,
       txlineOutcomeId: null,
       venueId: "venue",
       externalMarketId: "market",
       externalOutcomeId: "yes",
       normalizedOutcomeLabel: "Spain",
-      equivalence: "exact",
+      equivalence: "settlement-exact",
       resolutionNotes: "Same result.",
       reviewedAt: "2026-07-18T00:00:00.000Z",
     };
-    expect(() => validateMapping(mapping)).toThrow("Exact MarketMapping");
+    expect(() => validateMapping(mapping)).toThrow("canonical selection");
+  });
+
+  it("allows normal-completion comparable mappings without claiming settlement equivalence", () => {
+    const mapping: MarketMapping = {
+      id: "bad-rules",
+      canonicalSelectionId: "world-cup:argentina",
+      txlineFixtureId: null,
+      txlineOutcomeId: null,
+      venueId: "venue",
+      externalMarketId: "market",
+      externalOutcomeId: "yes",
+      normalizedOutcomeLabel: "Argentina",
+      equivalence: "normal-completion-comparable",
+      resolutionNotes: "Comparable only under normal tournament completion.",
+      reviewedAt: "2026-07-18T00:00:00.000Z",
+    };
+    expect(validateMapping(mapping)).toMatchObject({ equivalence: "normal-completion-comparable" });
   });
 
   it("keeps the committed SX Spain mapping related, not paper executable", () => {
@@ -88,7 +123,7 @@ describe("market radar contracts", () => {
     const quote = buildMappedObservationPaperQuote({ observation: mapped, eligibility });
     expect(quote).toMatchObject({
       quoteId: "external:test-venue:market-1:yes",
-      outcomeId: "participant_2",
+      selectionId: "fixture-18237038:participant_2",
       decimalOdds: 2,
       availableStake: 100,
       provenance: {
@@ -96,6 +131,7 @@ describe("market radar contracts", () => {
         externalMarketId: "market-1",
         externalOutcomeId: "yes",
         mappingId: "exact-map",
+        canonicalSelectionId: "fixture-18237038:participant_2",
         observedAt: "2026-07-18T19:59:00.000Z",
       },
     });
@@ -273,6 +309,190 @@ describe("connector adapter contracts", () => {
       participant_2: 0.30893,
     });
   });
+
+  it("normalizes Kalshi YES bids and complementary YES asks from NO bids", () => {
+    const [yes] = normalizeKalshiMarket(
+      kalshiMarket,
+      kalshiOrderbook,
+      kalshiRawFixture.capturedAt,
+    );
+    expect(yes).toMatchObject({
+      venueId: "kalshi",
+      externalMarketId: "KXMENWORLDCUP-26-AR",
+      externalOutcomeId: "yes",
+      bestBidProbability: 0.417,
+      bestAskProbability: 0.418,
+      availableBidSize: 12655.61,
+      availableAskSize: 184555.69,
+      observedAt: "2026-07-19T03:00:00.000Z",
+    });
+  });
+
+  it("normalizes Kalshi NO bids and complementary NO asks from YES bids", () => {
+    const [, no] = normalizeKalshiMarket(
+      kalshiMarket,
+      kalshiOrderbook,
+      kalshiRawFixture.capturedAt,
+    );
+    expect(no).toMatchObject({
+      externalOutcomeId: "no",
+      bestBidProbability: 0.582,
+      bestAskProbability: 0.583,
+      availableBidSize: 256965.11,
+      availableAskSize: 17693.58,
+    });
+  });
+
+  it("preserves fallback timestamp when Kalshi orderbook has no authoritative timestamp", () => {
+    const [yes] = normalizeKalshiMarket(kalshiMarket, { orderbook_fp: { yes_dollars: [], no_dollars: [] } }, "2026-07-19T03:01:00.000Z");
+    expect(yes.observedAt).toBe("2026-07-19T03:01:00.000Z");
+    expect(yes.availableAskSize).toBeNull();
+  });
+
+  it("drops malformed Kalshi levels", () => {
+    const [yes] = normalizeKalshiMarket(
+      kalshiMarket,
+      { orderbook_fp: { yes_dollars: [["bad", "10"] as [string, string]], no_dollars: [["0.6000", "bad"] as [string, string]] } },
+      kalshiRawFixture.capturedAt,
+    );
+    expect(yes.bestBidProbability).toBe(0.417);
+    expect(yes.availableAskSize).toBeNull();
+  });
+});
+
+describe("real cross-venue quote construction", () => {
+  it("groups comparable peers by canonical selection and routes partial live real fills", () => {
+    const sx = exactMappedObservation({
+      venueId: "sx-bet",
+      venueLabel: "SX Bet",
+      externalMarketId: "sx-argentina",
+      bestAskProbability: 0.43,
+      availableAskSize: 100,
+    });
+    sx.mapping = { ...sx.mapping!, canonicalSelectionId: "world-cup:argentina", externalMarketId: "sx-argentina", venueId: "sx-bet" };
+    const kalshi = exactMappedObservation({
+      venueId: "kalshi",
+      venueLabel: "Kalshi",
+      externalMarketId: "kalshi-argentina",
+      bestAskProbability: 0.42,
+      availableAskSize: 200,
+    });
+    kalshi.mapping = { ...kalshi.mapping!, canonicalSelectionId: "world-cup:argentina", externalMarketId: "kalshi-argentina", venueId: "kalshi" };
+    const related = exactMappedObservation({
+      venueId: "polymarket",
+      externalMarketId: "spain",
+      bestAskProbability: 0.5,
+      availableAskSize: 1000,
+    });
+    related.mapping = { ...related.mapping!, canonicalSelectionId: "world-cup:spain", externalMarketId: "spain", venueId: "polymarket" };
+    const result = buildRealExecutableQuotes({
+      observations: [sx, kalshi, related],
+      now,
+      selectedCanonicalSelectionId: "world-cup:argentina",
+      sourceStatuses: { "sx-bet": "live", kalshi: "live" },
+    });
+    expect(result.liveStatus).toBe("ready-multi-venue");
+    expect(result.currentLiveQuotes.map((quote) => quote.venueId)).toEqual(["kalshi", "sx-bet"]);
+    const route = buildRealPaperRoute(
+      { selectionId: result.canonicalSelectionId!, requestedStake: 350, minimumDecimalOdds: 2, userProbability: 0.55 },
+      result.currentLiveQuotes,
+    );
+    expect(route.filledStake).toBe(300);
+    expect(route.unfilledStake).toBe(50);
+    expect(route.fills.map((fill) => fill.venueLabel)).toEqual(["Kalshi", "SX Bet"]);
+  });
+
+  it("does not show an unrelated selected market's Argentina route", () => {
+    const yesA = exactMappedObservation({ venueId: "venue-a", externalMarketId: "market-a", outcomeLabel: "Yes" });
+    yesA.mapping = { ...yesA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a", externalMarketId: "market-a" };
+    const yesB = exactMappedObservation({ venueId: "venue-b", externalMarketId: "market-b", outcomeLabel: "Yes" });
+    yesB.mapping = { ...yesB.mapping!, canonicalSelectionId: "next-match:argentina", venueId: "venue-b", externalMarketId: "market-b" };
+    const result = buildRealExecutableQuotes({ observations: [yesA, yesB], now, selectedCanonicalSelectionId: "next-match:argentina" });
+    expect(result.liveStatus).toBe("single-venue");
+    expect(result.currentLiveQuotes.map((quote) => quote.venueId)).toEqual(["venue-b"]);
+  });
+
+  it("asks for a comparable selected market before showing witness quotes", () => {
+    const result = buildRealExecutableQuotes({ observations: [exactMappedObservation()], now, selectedCanonicalSelectionId: null });
+    expect(result.liveStatus).toBe("no-comparable-overlap");
+    expect(result.liveReason).toContain("Select a comparable mapped market");
+  });
+
+  it("preserves a single valid quote in the single-venue state", () => {
+    const only = exactMappedObservation({ venueId: "venue-a", bestAskProbability: 0.5, availableAskSize: 100 });
+    only.mapping = { ...only.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const result = buildRealExecutableQuotes({ observations: [only], now, selectedCanonicalSelectionId: "world-cup:argentina" });
+    expect(result.liveStatus).toBe("single-venue");
+    expect(result.currentLiveQuotes).toHaveLength(1);
+  });
+
+  it("routes two fresh peers when a third comparable peer is stale", () => {
+    const freshA = exactMappedObservation({ venueId: "venue-a", bestAskProbability: 0.5, availableAskSize: 100 });
+    freshA.mapping = { ...freshA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const freshB = exactMappedObservation({ venueId: "venue-b", bestAskProbability: 0.49, availableAskSize: 100 });
+    freshB.mapping = { ...freshB.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-b" };
+    const oldA = exactMappedObservation({ venueId: "venue-c", observedAt: "2026-07-17T19:00:00.000Z" });
+    oldA.mapping = { ...oldA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-c" };
+    const result = buildRealExecutableQuotes({
+      observations: [freshA, freshB, oldA],
+      now,
+      selectedCanonicalSelectionId: "world-cup:argentina",
+    });
+    expect(result.liveStatus).toBe("ready-multi-venue");
+    expect(result.currentLiveQuotes.map((quote) => quote.venueId)).toEqual(["venue-b", "venue-a"]);
+  });
+
+  it("rejects inactive markets before readiness", () => {
+    const inactive = exactMappedObservation({ venueId: "venue-a", rawStatus: "closed" });
+    inactive.mapping = { ...inactive.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const result = buildRealExecutableQuotes({ observations: [inactive], now, selectedCanonicalSelectionId: "world-cup:argentina" });
+    expect(result.liveStatus).toBe("no-current-route");
+  });
+
+  it("keeps captured witness viewable after 24 hours without live routing", () => {
+    const capturedA = exactMappedObservation({ venueId: "venue-a", observedAt: "2026-07-01T00:00:00.000Z", rawStatus: "captured:ACTIVE" });
+    capturedA.mapping = { ...capturedA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const capturedB = exactMappedObservation({ venueId: "venue-b", observedAt: "2026-07-01T00:00:00.000Z", rawStatus: "captured:ACTIVE" });
+    capturedB.mapping = { ...capturedB.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-b" };
+    const result = buildRealExecutableQuotes({
+      observations: [capturedA, capturedB],
+      now,
+      selectedCanonicalSelectionId: "world-cup:argentina",
+      sourceStatuses: { "venue-a": "live", "venue-b": "live" },
+    });
+    expect(result.liveStatus).toBe("no-current-route");
+    expect(result.capturedStatus).toBe("captured-witness");
+    expect(result.capturedWitnessQuotes.every((quote) => quote.provenance.status === "captured")).toBe(true);
+  });
+
+  it("shows one current live venue independently from captured witness quotes", () => {
+    const live = exactMappedObservation({ venueId: "venue-live", bestAskProbability: 0.5, availableAskSize: 100 });
+    live.mapping = { ...live.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-live" };
+    const capturedA = exactMappedObservation({ venueId: "venue-a", observedAt: "2026-07-01T00:00:00.000Z", rawStatus: "captured:ACTIVE" });
+    capturedA.mapping = { ...capturedA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const capturedB = exactMappedObservation({ venueId: "venue-b", observedAt: "2026-07-01T00:00:00.000Z", rawStatus: "captured:ACTIVE" });
+    capturedB.mapping = { ...capturedB.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-b" };
+    const result = buildRealExecutableQuotes({
+      observations: [live, capturedA, capturedB],
+      now,
+      selectedCanonicalSelectionId: "world-cup:argentina",
+      sourceStatuses: { "venue-live": "live", "venue-a": "live", "venue-b": "live" },
+    });
+    expect(result.liveStatus).toBe("single-venue");
+    expect(result.currentLiveQuotes.map((quote) => quote.venueId)).toEqual(["venue-live"]);
+    expect(result.capturedStatus).toBe("captured-witness");
+    expect(result.capturedWitnessQuotes.map((quote) => quote.venueId)).toEqual(["venue-a", "venue-b"]);
+  });
+
+  it("keeps stale live real quotes out of current routing", () => {
+    const oldA = exactMappedObservation({ venueId: "venue-a", observedAt: "2026-07-17T19:00:00.000Z" });
+    oldA.mapping = { ...oldA.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-a" };
+    const oldB = { ...peerObservation(), observedAt: "2026-07-17T19:00:00.000Z" };
+    oldB.mapping = { ...oldB.mapping!, canonicalSelectionId: "world-cup:argentina", venueId: "venue-b" };
+    const result = buildRealExecutableQuotes({ observations: [oldA, oldB], now, selectedCanonicalSelectionId: "world-cup:argentina" });
+    expect(result.liveStatus).toBe("quotes-stale");
+    expect(result.currentLiveQuotes).toHaveLength(0);
+  });
 });
 
 describe("python strategy contract", () => {
@@ -327,6 +547,183 @@ describe("python strategy contract", () => {
     expect(result.decision).toBe("context-only");
     expect(result.proposedStake).toBeNull();
     expect(result.reasons.at(-1)).toContain("advisory");
+  });
+});
+
+describe("targeted real-venue witness imports", () => {
+  it("keeps the SX Bet witness when it is outside the ordinary active-market slice", async () => {
+    const fillerMarkets = Array.from({ length: 12 }, (_, index) => ({
+      ...sxRawFixture.market,
+      marketHash: `0xfiller${index}`,
+      outcomeOneName: `Filler ${index}`,
+      teamOneName: `Filler ${index}`,
+    }));
+    const targetMarket = {
+      ...sxRawFixture.market,
+      marketHash: sxTargetMarketHash,
+      outcomeOneName: "Argentina",
+      teamOneName: "Argentina",
+      outcomeTwoName: "The Field",
+      teamTwoName: "The Field",
+      leagueLabel: "Outrights - World Cup",
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/markets/find")) {
+        return jsonResponse({ status: "success", data: [targetMarket] });
+      }
+      if (url.includes("/markets/active")) {
+        return jsonResponse({ status: "success", data: { markets: [...fillerMarkets, targetMarket] } });
+      }
+      const marketHash = new URL(url).searchParams.get("marketHashes");
+      return jsonResponse({
+        status: "success",
+        data: sxRawFixture.orders.map((order) => ({ ...order, marketHash })),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("server-only", () => ({}));
+    const { fetchSxBetObservations } = await import("./sxBetAdapter");
+
+    const result = await fetchSxBetObservations();
+
+    expect(result.health.status).toBe("live");
+    const targetObservations = result.observations.filter((observation) => observation.externalMarketId === sxTargetMarketHash);
+    expect(targetObservations).toHaveLength(2);
+    expect(targetObservations.every((observation) => !observation.rawStatus.startsWith("captured:"))).toBe(true);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes(`/markets/find?marketHashes=${sxTargetMarketHash}`))).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/orders?")).length).toBe(13);
+  });
+
+  it("keeps SX Bet general live data when the targeted witness call fails and appends captured target evidence", async () => {
+    const fillerMarket = { ...sxRawFixture.market, marketHash: "0xfiller-live" };
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/markets/active")) {
+        return jsonResponse({ status: "success", data: { markets: [fillerMarket] } });
+      }
+      if (url.includes("/markets/find")) {
+        return { ok: false, status: 500, statusText: "Target failed", json: async () => ({}) };
+      }
+      const marketHash = new URL(url).searchParams.get("marketHashes");
+      return jsonResponse({
+        status: "success",
+        data: sxRawFixture.orders.map((order) => ({ ...order, marketHash })),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("server-only", () => ({}));
+    const { fetchSxBetObservations } = await import("./sxBetAdapter");
+
+    const result = await fetchSxBetObservations();
+
+    expect(result.health.status).toBe("live");
+    expect(result.observations.some((observation) => observation.externalMarketId === "0xfiller-live" && !observation.rawStatus.startsWith("captured:"))).toBe(true);
+    expect(result.observations.filter((observation) => observation.externalMarketId === sxTargetMarketHash).every((observation) => observation.rawStatus.startsWith("captured:"))).toBe(true);
+  });
+
+  it("keeps the Kalshi witness when it is outside the ordinary binary-market slice", async () => {
+    const fillerMarkets = Array.from({ length: 8 }, (_, index) => ({
+      ...kalshiMarket,
+      ticker: `KXMENWORLDCUP-26-FILL${index}`,
+      title: `Will filler ${index} win the 2026 Men's World Cup?`,
+      yes_sub_title: `Filler ${index}`,
+      no_sub_title: `Filler ${index}`,
+    }));
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/markets?")) {
+        return jsonResponse({ markets: [...fillerMarkets, kalshiMarket] });
+      }
+      if (url.endsWith(`/markets/${kalshiTargetTicker}`)) {
+        return jsonResponse({ market: kalshiMarket });
+      }
+      return jsonResponse(kalshiOrderbook);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("server-only", () => ({}));
+    const { fetchKalshiObservations } = await import("./kalshiAdapter");
+
+    const result = await fetchKalshiObservations();
+
+    expect(result.health.status).toBe("live");
+    const targetObservations = result.observations.filter((observation) => observation.externalMarketId === kalshiTargetTicker);
+    expect(targetObservations).toHaveLength(2);
+    expect(targetObservations.every((observation) => !observation.rawStatus.startsWith("captured:"))).toBe(true);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith(`/markets/${kalshiTargetTicker}`))).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/orderbook")).length).toBe(9);
+  });
+
+  it("keeps Kalshi general live data when the targeted witness call fails and appends captured target evidence", async () => {
+    const fillerMarket = {
+      ...kalshiMarket,
+      ticker: "KXMENWORLDCUP-26-FILL",
+      title: "Will filler win the 2026 Men's World Cup?",
+      yes_sub_title: "Filler",
+      no_sub_title: "Filler",
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/markets?")) {
+        return jsonResponse({ markets: [fillerMarket] });
+      }
+      if (url.endsWith(`/markets/${kalshiTargetTicker}`)) {
+        return { ok: false, status: 500, statusText: "Target failed", json: async () => ({}) };
+      }
+      return jsonResponse(kalshiOrderbook);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("server-only", () => ({}));
+    const { fetchKalshiObservations } = await import("./kalshiAdapter");
+
+    const result = await fetchKalshiObservations();
+
+    expect(result.health.status).toBe("live");
+    expect(result.observations.some((observation) => observation.externalMarketId === "KXMENWORLDCUP-26-FILL" && !observation.rawStatus.startsWith("captured:"))).toBe(true);
+    expect(result.observations.filter((observation) => observation.externalMarketId === kalshiTargetTicker).every((observation) => observation.rawStatus.startsWith("captured:"))).toBe(true);
+  });
+
+  it("keeps the Polymarket witness from the bounded slug read when it is outside the ordinary event slice", async () => {
+    const fillerEvent = {
+      ...polymarketRawFixture.event,
+      markets: Array.from({ length: 10 }, (_, index) => ({
+        ...polymarketRawFixture.market,
+        conditionId: `0xfiller${index}`,
+        question: `Will filler ${index} win?`,
+        clobTokenIds: JSON.stringify([`yes-token-${index}`, `no-token-${index}`]),
+      })),
+    };
+    const targetEvent = {
+      ...polymarketRawFixture.event,
+      slug: "world-cup-winner",
+      title: "World Cup Winner",
+      markets: [
+        {
+          ...polymarketRawFixture.market,
+          conditionId: polymarketTargetConditionId,
+          question: "Will Argentina win the 2026 FIFA World Cup?",
+          clobTokenIds: JSON.stringify([polymarketTargetTokenId, "target-no-token"]),
+          outcomes: JSON.stringify(["Yes", "No"]),
+          active: true,
+          closed: false,
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/events/slug/world-cup-winner")) {
+        return jsonResponse(targetEvent);
+      }
+      if (url.includes("/events?")) {
+        return jsonResponse([fillerEvent]);
+      }
+      return jsonResponse(polymarketRawFixture.book);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("server-only", () => ({}));
+    const { fetchPolymarketObservations } = await import("./polymarketAdapter");
+
+    const result = await fetchPolymarketObservations();
+
+    expect(result.health.status).toBe("live");
+    expect(result.observations.some((observation) => observation.externalOutcomeId === polymarketTargetTokenId)).toBe(true);
+    expect(result.observations.filter((observation) => observation.externalMarketId === polymarketTargetConditionId)).toHaveLength(2);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/book?")).length).toBe(22);
   });
 });
 
@@ -584,13 +981,14 @@ function exactMappedObservation(overrides: Partial<ExternalMarketObservation> = 
     ...observation(overrides),
     mapping: {
       id: "exact-map",
+      canonicalSelectionId: "fixture-18237038:participant_2",
       txlineFixtureId: "18237038",
       txlineOutcomeId: "participant_2",
       venueId: "test-venue",
       externalMarketId: "market-1",
       externalOutcomeId: "yes",
       normalizedOutcomeLabel: "Spain match result",
-      equivalence: "exact",
+      equivalence: "settlement-exact",
       resolutionNotes: "Audited same fixture result.",
       reviewedAt: "2026-07-18T00:00:00.000Z",
     },
@@ -612,13 +1010,14 @@ function peerObservation(): ObservationWithMapping {
     }),
     mapping: {
       id: "peer-exact-map",
+      canonicalSelectionId: "fixture-18237038:participant_2",
       txlineFixtureId: "18237038",
       txlineOutcomeId: "participant_2",
       venueId: "peer",
       externalMarketId: "market-2",
       externalOutcomeId: "yes",
       normalizedOutcomeLabel: "Spain match result",
-      equivalence: "exact",
+      equivalence: "settlement-exact",
       resolutionNotes: "Audited same fixture result.",
       reviewedAt: "2026-07-18T00:00:00.000Z",
     },
@@ -643,5 +1042,14 @@ function rankedItem(observation: ObservationWithMapping, score: number) {
   return {
     observation,
     score: { total: score },
+  };
+}
+
+function jsonResponse(value: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    json: async () => value,
   };
 }

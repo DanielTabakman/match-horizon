@@ -1,9 +1,8 @@
-import type { OutcomeQuote } from "../domain";
 import type {
   ObservationRouteState,
   ObservationWithMapping,
   PaperEligibilityResult,
-  ProvenancedSimulatedQuote,
+  ProvenancedGenericQuote,
   StrategyEvaluation,
   StrategyRecipe,
 } from "./types";
@@ -24,8 +23,8 @@ export function evaluatePaperEligibility({
   const askDepth = observation.availableAskSize;
   const ageMs = Math.max(0, now - Date.parse(observation.observedAt));
 
-  if (observation.mapping?.equivalence !== "exact" || !observation.mapping.txlineOutcomeId) {
-    reasons.push("requires exact audited mapping to a TxLINE fixture outcome");
+  if (observation.mapping?.equivalence !== "settlement-exact" || !observation.mapping.canonicalSelectionId) {
+    reasons.push("requires settlement-exact audited canonical mapping");
   }
   if (ask === null || ask <= 0 || ask > 1) {
     reasons.push("requires a valid executable ask probability");
@@ -66,12 +65,14 @@ export function buildMappedObservationPaperQuote({
   observation,
   eligibility,
   availableStake,
+  sourceStatus = "live",
 }: {
   observation: ObservationWithMapping;
   eligibility: PaperEligibilityResult;
   availableStake?: number | null;
-}): ProvenancedSimulatedQuote | null {
-  if (!eligibility.eligible || observation.mapping?.equivalence !== "exact" || !observation.mapping.txlineOutcomeId) {
+  sourceStatus?: "live" | "captured";
+}): ProvenancedGenericQuote | null {
+  if (!eligibility.eligible || observation.mapping?.equivalence !== "settlement-exact" || !observation.mapping.canonicalSelectionId) {
     return null;
   }
 
@@ -85,8 +86,8 @@ export function buildMappedObservationPaperQuote({
     quoteId: `external:${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`,
     venueId: observation.venueId,
     venueLabel: observation.venueLabel,
-    outcomeId: observation.mapping.txlineOutcomeId as OutcomeQuote["outcomeId"],
-    decimalOdds: Math.round((1 / probability) * 1000) / 1000,
+    selectionId: observation.mapping.canonicalSelectionId,
+    decimalOdds: 1 / probability,
     availableStake: size,
     provenance: {
       venueId: observation.venueId,
@@ -95,6 +96,9 @@ export function buildMappedObservationPaperQuote({
       externalOutcomeId: observation.externalOutcomeId,
       observedAt: observation.observedAt,
       mappingId: observation.mapping.id,
+      canonicalSelectionId: observation.mapping.canonicalSelectionId,
+      sourceUrl: observation.sourceUrl,
+      status: sourceStatus,
     },
   };
 }

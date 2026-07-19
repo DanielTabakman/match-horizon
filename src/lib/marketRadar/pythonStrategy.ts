@@ -102,7 +102,7 @@ export function enforcePythonAdvisoryRouteGate({
   result: PythonStrategyResult;
   selectedObservation: ObservationWithMapping | null;
 }): PythonStrategyResult {
-  if (result.decision !== "accept" || selectedObservation?.mapping?.equivalence === "exact") {
+  if (result.decision !== "accept" || selectedObservation?.mapping?.equivalence === "settlement-exact") {
     return result;
   }
   return {
@@ -111,7 +111,7 @@ export function enforcePythonAdvisoryRouteGate({
     proposedStake: null,
     reasons: [
       ...result.reasons,
-      "Python output is advisory: only an exact mapped observation that separately passes TypeScript route gates may be pinned.",
+      "Python output is advisory: only a settlement-exact mapped observation that separately passes TypeScript route gates may be pinned.",
     ],
   };
 }

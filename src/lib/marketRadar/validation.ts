@@ -47,12 +47,12 @@ export function validateMapping(mapping: MarketMapping): MarketMapping {
     throw new Error("MarketMapping must include ids for the mapping, venue, market, and outcome.");
   }
 
-  if (!["exact", "related", "not-equivalent"].includes(mapping.equivalence)) {
+  if (!["settlement-exact", "normal-completion-comparable", "related", "not-equivalent"].includes(mapping.equivalence)) {
     throw new Error(`Unsupported market mapping equivalence: ${mapping.equivalence}`);
   }
 
-  if (mapping.equivalence === "exact" && (!mapping.txlineFixtureId || !mapping.txlineOutcomeId)) {
-    throw new Error("Exact MarketMapping requires TxLINE fixture and outcome ids.");
+  if ((mapping.equivalence === "settlement-exact" || mapping.equivalence === "normal-completion-comparable") && !mapping.canonicalSelectionId) {
+    throw new Error("Comparable MarketMapping requires a canonical selection id.");
   }
 
   if (!mapping.resolutionNotes) {

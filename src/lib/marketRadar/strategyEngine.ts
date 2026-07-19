@@ -52,7 +52,7 @@ export function scoreObservation({
     extremeness: probability === null ? 0 : clamp(Math.abs(probability - 0.5) * 2, 0, 1),
     crossVenueDivergence: probability === null || consensus === null ? 0 : clamp(Math.abs(probability - consensus) / 0.25, 0, 1),
     beliefDisagreement: probability === null || belief === undefined ? 0 : clamp(Math.abs(belief - probability) / 0.25, 0, 1),
-    resolutionRiskPenalty: observation.mapping?.equivalence === "exact" ? 0 : observation.mapping ? 0.15 : 0.3,
+    resolutionRiskPenalty: observation.mapping?.equivalence === "settlement-exact" ? 0 : observation.mapping ? 0.15 : 0.3,
   };
   const total = clamp(
     breakdown.liquidity * 18 +
@@ -95,12 +95,12 @@ export function evaluateRecipe({
 
   if (!observation.mapping) {
     contextOnlyReasons.push("context-only because mapping is missing and no equivalence is claimed.");
-  } else if (observation.mapping.equivalence !== "exact") {
-    contextOnlyReasons.push(`context-only because mapping ${observation.mapping.id} is ${observation.mapping.equivalence}, not exact.`);
+  } else if (observation.mapping.equivalence !== "settlement-exact") {
+    contextOnlyReasons.push(`context-only because mapping ${observation.mapping.id} is ${observation.mapping.equivalence}, not settlement-exact.`);
   }
 
-  if (recipe.requireExplicitMapping && observation.mapping?.equivalence !== "exact") {
-    rejectedReasons.push("rejected because this recipe requires an exact mapping before paper routing.");
+  if (recipe.requireExplicitMapping && observation.mapping?.equivalence !== "settlement-exact") {
+    rejectedReasons.push("rejected because this recipe requires a settlement-exact mapping before paper routing.");
   }
   if (probability === null) {
     rejectedReasons.push("rejected because no usable ask or midpoint probability is available.");
@@ -265,7 +265,7 @@ function marketProbability(observation: ObservationWithMapping): number | null {
 
 export function auditedComparisonGroupId(observation: ObservationWithMapping): string | null {
   const mapping = observation.mapping;
-  if (mapping?.equivalence !== "exact" || !mapping.txlineFixtureId || !mapping.txlineOutcomeId) {
+  if (mapping?.equivalence !== "settlement-exact" || !mapping.txlineFixtureId || !mapping.txlineOutcomeId) {
     return null;
   }
   return `${mapping.txlineFixtureId}:${mapping.txlineOutcomeId}`;
