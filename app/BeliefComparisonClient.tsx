@@ -34,6 +34,10 @@ import {
   canBuildRouteWithPaperQuotePolicy,
   isValidPaperQuoteInput,
 } from "../src/lib/execution/paperQuote";
+import {
+  HISTORICAL_MARKET_SNAPSHOT,
+  HISTORICAL_MARKET_SOURCE_NOTE,
+} from "../src/lib/execution/historicalMarket";
 import { STRATEGY_PRESETS, strategyPresetValues, type StrategyPresetId } from "../src/lib/strategies/presets";
 
 export type SnapshotState =
@@ -417,8 +421,8 @@ function ExecutionAgentPanel({
               <p className="eyebrow">Paper decision</p>
               <h3>{strongestPositive.label} match result</h3>
               <p>
-                Simulation only. The route uses captured TxLINE probabilities and simulated liquidity; no wager is
-                submitted.
+                Simulation only. The route uses captured TxLINE probabilities, historical closing prices, and
+                simulated capacity; no wager is submitted.
               </p>
             </div>
             <div className="metric-grid">
@@ -604,21 +608,24 @@ function ExecutionAgentPanel({
               id="route-stage-heading"
               step="3"
               title="Build paper route"
-              guidance="Allocate the target stake across eligible simulated quotes at or above the minimum odds."
+              guidance="Paper route using historical prices and simulated capacity."
               status={plan ? "Route built" : "Not built"}
               tone={plan ? "live" : "caution"}
             />
+            <HistoricalMarketSnapshotPanel outcomeQuotes={outcomeQuotes} />
             <div className="execution-routing-grid">
               <div className="execution-table">
                 <div className="panel-heading">
-                  <h3>Available simulated liquidity</h3>
-                  <span>{outcomeQuotes.length} quotes</span>
+                  <h3>Paper route using historical prices and simulated capacity</h3>
+                  <span>Simulation only - no wager submitted</span>
                 </div>
                 {outcomeQuotes.map((quote) => (
                   <div className="execution-row" key={quote.quoteId}>
-                    <span>{quote.venueLabel}</span>
+                    <span>
+                      {quote.quoteId === "spain-d" ? "Synthetic stress quote" : quote.venueLabel}
+                    </span>
                     <strong>{formatDecimalOdds(quote.decimalOdds)}</strong>
-                    <span>{formatCurrency(quote.availableStake)}</span>
+                    <span>Simulated capacity {formatCurrency(quote.availableStake)}</span>
                     <span
                       className={
                         pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds ? "valid" : "invalid"
@@ -635,14 +642,14 @@ function ExecutionAgentPanel({
               <div className="execution-table">
                 <div className="panel-heading">
                   <h3>Routed fills</h3>
-                  <span>{plan ? `${plan.route.fills.length} fills` : "Waiting for build"}</span>
+                  <span>{plan ? `${plan.route.fills.length} paper fills` : "Waiting for build"}</span>
                 </div>
                 {plan && plan.route.fills.length > 0 ? (
                   plan.route.fills.map((fill) => (
                     <div className="execution-row" key={fill.quoteId}>
                       <span>{fill.venueLabel}</span>
                       <strong>{formatDecimalOdds(fill.decimalOdds)}</strong>
-                      <span>{formatCurrency(fill.filledStake)}</span>
+                      <span>Paper fill {formatCurrency(fill.filledStake)}</span>
                       <span>{formatCurrency(fill.estimatedGrossPayout)}</span>
                     </div>
                   ))
@@ -679,8 +686,9 @@ function ExecutionAgentPanel({
           <div className="truth-panel">
             <h3>Truth boundary</h3>
             <p>
-              TxLINE supplies the captured market reference and final result. Venue names, executable quotes, routing,
-              and settlement are simulated for paper analysis only.
+              TxLINE supplies the captured market reference and final result. Historical bookmaker prices are sourced
+              third-party closing references. Capacity, route fills, order transmission, custody, and settlement money
+              are simulated for paper analysis only.
             </p>
           </div>
         </>
@@ -973,6 +981,79 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function HistoricalMarketSnapshotPanel({ outcomeQuotes }: { outcomeQuotes: SimulatedQuoteSummary[] }) {
+  return (
+    <div className="historical-market-panel" aria-label="Historical market snapshot">
+      <div className="panel-heading">
+        <div>
+          <h3>Historical market snapshot</h3>
+          <span>
+            {HISTORICAL_MARKET_SNAPSHOT.match.participant1} vs {HISTORICAL_MARKET_SNAPSHOT.match.participant2} -{" "}
+            {HISTORICAL_MARKET_SNAPSHOT.match.competition}
+          </span>
+        </div>
+        <StatusBadge tone="live">Historical source</StatusBadge>
+      </div>
+
+      <div className="historical-market-meta">
+        <span>Full-time 1X2 · Closing</span>
+        <span>Fixture {HISTORICAL_MARKET_SNAPSHOT.fixtureId}</span>
+        <span>Kickoff {formatTimestamp(HISTORICAL_MARKET_SNAPSHOT.match.kickoff)}</span>
+      </div>
+
+      <div className="historical-market-table">
+        <div className="historical-market-row historical-market-headings">
+          <span>Bookmaker</span>
+          <span>France</span>
+          <span>Draw</span>
+          <span>Spain</span>
+          <span>Selected Spain price</span>
+          <span>Simulated capacity</span>
+        </div>
+        {HISTORICAL_MARKET_SNAPSHOT.bookmakers.map((bookmaker) => {
+          const spainQuote = outcomeQuotes.find((quote) => quote.venueId === bookmaker.id);
+
+          return (
+            <div className="historical-market-row" key={bookmaker.id}>
+              <strong>{bookmaker.name}</strong>
+              <HistoricalPrice value={bookmaker.prices.participant_1} />
+              <HistoricalPrice value={bookmaker.prices.draw} />
+              <HistoricalPrice value={bookmaker.prices.participant_2} selected />
+              <span>{formatDecimalOdds(bookmaker.prices.participant_2)}</span>
+              <span>{spainQuote ? formatCurrency(spainQuote.availableStake) : "-"}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="source-note">{HISTORICAL_MARKET_SOURCE_NOTE}</p>
+
+      <details className="source-disclosure">
+        <summary>Source and provenance</summary>
+        <dl>
+          <ReceiptRow label="Source URL" value={HISTORICAL_MARKET_SNAPSHOT.source.url} />
+          <ReceiptRow label="Retrieved at" value={formatTimestamp(HISTORICAL_MARKET_SNAPSHOT.source.retrievedAt)} />
+          <ReceiptRow label="Provenance" value={HISTORICAL_MARKET_SNAPSHOT.source.provenanceType} />
+        </dl>
+      </details>
+    </div>
+  );
+}
+
+type SimulatedQuoteSummary = {
+  venueId: string;
+  availableStake: number;
+};
+
+function HistoricalPrice({ value, selected = false }: { value: number; selected?: boolean }) {
+  return (
+    <span className={selected ? "historical-price selected" : "historical-price"}>
+      <strong>{formatDecimalOdds(value)}</strong>
+      <small>Historical closing price</small>
+    </span>
   );
 }
 
