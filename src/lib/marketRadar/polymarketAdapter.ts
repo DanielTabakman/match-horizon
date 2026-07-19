@@ -14,6 +14,7 @@ const GAMMA_API = "https://gamma-api.polymarket.com";
 const CLOB_API = "https://clob.polymarket.com";
 const TIMEOUT_MS = 5500;
 const CACHE_TTL_MS = 45_000;
+const GAMMA_EVENT_LIMIT = 30;
 const MAX_MARKETS = 10;
 
 export async function fetchPolymarketObservations(): Promise<ConnectorResult> {
@@ -63,7 +64,7 @@ async function fetchLivePolymarketObservations(): Promise<ExternalMarketObservat
     cacheKey: "polymarket:events",
     ttlMs: CACHE_TTL_MS,
     timeoutMs: TIMEOUT_MS,
-    url: `${GAMMA_API}/events?active=true&closed=false&limit=8`,
+    url: `${GAMMA_API}/events?active=true&closed=false&limit=${GAMMA_EVENT_LIMIT}`,
   });
   if (!Array.isArray(events)) {
     throw new Error("Polymarket Gamma response did not match expected shape.");

@@ -1251,7 +1251,7 @@ button.button-primary:disabled {
 .radar-summary-strip {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .radar-summary-strip .mini-metric,
@@ -1264,7 +1264,7 @@ button.button-primary:disabled {
 
 .radar-filters {
   align-items: end;
-  grid-template-columns: 0.9fr 1fr 1fr minmax(180px, 1.5fr) 0.8fr auto;
+  grid-template-columns: 1fr 0.9fr 1fr 1fr minmax(180px, 1.5fr) 0.8fr auto;
 }
 
 .radar-filters label span {
@@ -1307,6 +1307,12 @@ button.button-primary:disabled {
 .empty-state.compact {
   min-height: auto;
   padding: 14px;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .radar-card {
