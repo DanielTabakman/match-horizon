@@ -908,6 +908,11 @@ button:disabled {
   gap: 10px;
 }
 
+.real-witness-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .lab-tabs,
 .python-actions,
 .python-run-grid,

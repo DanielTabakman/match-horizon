@@ -10,6 +10,7 @@ const SX_BET_API = "https://api.sx.bet";
 const TIMEOUT_MS = 5500;
 const CACHE_TTL_MS = 45_000;
 const MAX_MARKETS = 12;
+const TARGET_MARKET_HASH = "0x5bce8280a141889cca30944efc700d9f7a594db4e1e390d93d1d9eb8f4226bf1";
 
 type SxActiveMarketsResponse = { status: "success"; data: { markets: SxMarket[] } };
 type SxOrdersResponse = { status: "success"; data: SxOrder[] };
@@ -64,7 +65,11 @@ async function fetchLiveSxBetObservations(): Promise<ExternalMarketObservation[]
     throw new Error("SX Bet active markets response did not match expected shape.");
   }
 
-  const markets = response.data.markets.slice(0, MAX_MARKETS);
+  const targetMarket = response.data.markets.find((market) => market.marketHash === TARGET_MARKET_HASH) ?? null;
+  const markets = dedupeMarkets([
+    ...response.data.markets.slice(0, MAX_MARKETS),
+    ...(targetMarket ? [targetMarket] : []),
+  ]);
   const orderPairs = await Promise.all(
     markets.map(async (market) => {
       try {
@@ -82,7 +87,32 @@ async function fetchLiveSxBetObservations(): Promise<ExternalMarketObservation[]
   );
   const ordersByMarket = new Map(orderPairs);
   const observedAt = new Date().toISOString();
-  return markets.flatMap((market) => normalizeSxBetMarket(market, ordersByMarket.get(market.marketHash) ?? [], observedAt));
+  const observations = markets.flatMap((market) => normalizeSxBetMarket(market, ordersByMarket.get(market.marketHash) ?? [], observedAt));
+  if (observations.some((observation) => observation.externalMarketId === TARGET_MARKET_HASH)) {
+    return dedupeObservations(observations);
+  }
+
+  return dedupeObservations([
+    ...observations,
+    ...loadSxBetFixtureObservations()
+      .filter((observation) => observation.externalMarketId === TARGET_MARKET_HASH)
+      .map((observation) => ({ ...observation, rawStatus: `captured:${observation.rawStatus}` })),
+  ]);
+}
+
+function dedupeMarkets(markets: SxMarket[]): SxMarket[] {
+  return [...new Map(markets.map((market) => [market.marketHash, market])).values()];
+}
+
+function dedupeObservations(observations: ExternalMarketObservation[]): ExternalMarketObservation[] {
+  return [
+    ...new Map(
+      observations.map((observation) => [
+        `${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`,
+        observation,
+      ]),
+    ).values(),
+  ];
 }
 
 function newest(observations: ExternalMarketObservation[]): string | null {

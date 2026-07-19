@@ -5,6 +5,7 @@ export const MARKET_MAPPINGS: MarketMapping[] = [
   {
     id: "sx-world-cup-2026-spain-outright-related",
     canonicalSelectionId: null,
+    exceptionalResolution: "unverified",
     txlineFixtureId: "18237038",
     txlineOutcomeId: "participant_2",
     venueId: "sx-bet",
@@ -19,6 +20,7 @@ export const MARKET_MAPPINGS: MarketMapping[] = [
   {
     id: "sx-world-cup-2026-argentina-outright-exact",
     canonicalSelectionId: "fifa-world-cup-2026-winner:argentina",
+    exceptionalResolution: "compatible",
     txlineFixtureId: null,
     txlineOutcomeId: null,
     venueId: "sx-bet",
@@ -33,6 +35,7 @@ export const MARKET_MAPPINGS: MarketMapping[] = [
   {
     id: "kalshi-world-cup-2026-argentina-outright-exact",
     canonicalSelectionId: "fifa-world-cup-2026-winner:argentina",
+    exceptionalResolution: "compatible",
     txlineFixtureId: null,
     txlineOutcomeId: null,
     venueId: "kalshi",
@@ -47,6 +50,7 @@ export const MARKET_MAPPINGS: MarketMapping[] = [
   {
     id: "polymarket-world-cup-2026-argentina-outright-exact",
     canonicalSelectionId: "fifa-world-cup-2026-winner:argentina",
+    exceptionalResolution: "compatible",
     txlineFixtureId: null,
     txlineOutcomeId: null,
     venueId: "polymarket",
@@ -61,6 +65,7 @@ export const MARKET_MAPPINGS: MarketMapping[] = [
   {
     id: "polymarket-world-cup-2026-argentina-no-not-equivalent",
     canonicalSelectionId: null,
+    exceptionalResolution: "incompatible",
     txlineFixtureId: null,
     txlineOutcomeId: null,
     venueId: "polymarket",

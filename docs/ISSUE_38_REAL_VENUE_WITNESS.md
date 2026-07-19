@@ -32,6 +32,19 @@ Canonical selection: `fifa-world-cup-2026-winner:argentina`
 
 This group is not mapped to the historical France-Spain TxLINE fixture. It is a current cross-venue selection only.
 
+## Rule Comparison
+
+| Dimension | SX Bet | Kalshi | Polymarket | Conclusion |
+| --- | --- | --- | --- | --- |
+| Winner semantics | Public market metadata says `Argentina` vs `The Field` in `Outrights - World Cup`. | Rule text: `If Argentina wins the 2026 Men's World Cup, then the market resolves to Yes.` | Description: resolves according to the national team that wins the 2026 FIFA World Cup. | Compatible for the selected winner outcome. |
+| Tournament identity | `Soccer`, `Outrights - World Cup`, event `argentina:the-field`. | Event ticker `KXMENWORLDCUP-26`; descriptive FIFA/World Cup references in title and rules. | 2026 FIFA World Cup winner event. | Compatible. |
+| Time horizon | `gameTime` is 2026-07-22T12:00:00Z in the public SX payload. | `expected_expiration_time` is 2026-07-19T14:00:00Z; `early_close_condition` says the market closes after a title holder is declared. | `endDate` is 2026-07-20T00:00:00Z. | Compatible for the tournament-winner horizon. |
+| Market close vs technical expiration | Public SX payload exposes active status and `NO_GAME` void label, but no separate technical expiration text. | `close_time` / `expiration_time` are 2028-07-18T14:00:00Z, while `expected_expiration_time` is 2026-07-19T14:00:00Z. | Market end date is 2026-07-20T00:00:00Z. | Kalshi's 2028 fields are technical/latest expiration bounds; the event horizon is the 2026 title-holder declaration. |
+| Cancellation / abandonment / not completed | Public SX payload exposes `outcomeVoidName: NO_GAME`; no fuller public cancellation rules were available from the active-market payload. | Public market text does not expose an explicit cancellation clause; it says the market resolves Yes if Argentina wins and closes after title holder is declared. | If canceled or not completed by 2026-10-13 23:59, resolves to Other. | Exception handling is documented as a limitation. The app treats the group as exact only for paper routing of the ordinary winner outcome and does not model settlement money. |
+| Resolution source | Public SX payload does not include a narrative resolution source. | Kalshi market rules and event ticker are the public source. | FIFA official information, with credible reporting fallback. | Compatible enough for read-only quote comparison; source differences are surfaced as provenance. |
+
+Final conclusion: retain `equivalence=exact` for the ordinary Argentina-wins-tournament selection, with `exceptionalResolution=compatible` only for this paper-routing comparison. The app does not claim compatible custody, settlement, or live execution, and the witness keeps the exceptional-resolution limitations visible.
+
 ## Rejected Candidates
 
 | Venue | Market ID | Outcome ID | Title | Decision | Notes |

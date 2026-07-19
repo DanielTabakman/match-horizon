@@ -16,6 +16,9 @@ const TIMEOUT_MS = 5500;
 const CACHE_TTL_MS = 45_000;
 const GAMMA_EVENT_LIMIT = 30;
 const MAX_MARKETS = 10;
+const TARGET_EVENT_SLUG = "world-cup-winner";
+const TARGET_CONDITION_ID = "0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f";
+const TARGET_TOKEN_ID = "18812649149814341758733697580460697418474693998558159483117100240528657629879";
 
 export async function fetchPolymarketObservations(): Promise<ConnectorResult> {
   const startedAt = Date.now();
@@ -74,9 +77,10 @@ async function fetchLivePolymarketObservations(): Promise<ExternalMarketObservat
     .flatMap((event) => (event.markets ?? []).map((market) => ({ event, market })))
     .filter(({ market }) => market.active && !market.closed)
     .slice(0, MAX_MARKETS);
+  const targetedCandidates = await fetchTargetedCandidates();
   const observations: ExternalMarketObservation[] = [];
 
-  for (const { event, market } of candidates) {
+  for (const { event, market } of dedupeCandidates([...candidates, ...targetedCandidates])) {
     const outcomes = parseStringList(market.outcomes);
     const tokenIds = parseStringList(market.clobTokenIds);
     const prices = parseNumberList(market.outcomePrices);
@@ -90,7 +94,31 @@ async function fetchLivePolymarketObservations(): Promise<ExternalMarketObservat
     throw new Error("Polymarket returned no active public CLOB outcomes.");
   }
 
-  return observations;
+  if (!observations.some((observation) => observation.externalOutcomeId === TARGET_TOKEN_ID)) {
+    observations.push(
+      ...loadPolymarketFixtureObservations()
+        .filter((observation) => observation.externalMarketId === TARGET_CONDITION_ID)
+        .map((observation) => ({ ...observation, rawStatus: `captured:${observation.rawStatus}` })),
+    );
+  }
+
+  return dedupeObservations(observations);
+}
+
+async function fetchTargetedCandidates(): Promise<Array<{ event: GammaEvent; market: NonNullable<GammaEvent["markets"]>[number] }>> {
+  try {
+    const event = await cachedJson<GammaEvent>({
+      cacheKey: `polymarket:event:${TARGET_EVENT_SLUG}`,
+      ttlMs: CACHE_TTL_MS,
+      timeoutMs: TIMEOUT_MS,
+      url: `${GAMMA_API}/events/slug/${TARGET_EVENT_SLUG}`,
+    });
+    return (event.markets ?? [])
+      .filter((market) => market.conditionId === TARGET_CONDITION_ID && market.active && !market.closed)
+      .map((market) => ({ event, market }));
+  } catch {
+    return [];
+  }
 }
 
 async function fetchBook(tokenId: string): Promise<ClobBook | null> {
@@ -104,6 +132,23 @@ async function fetchBook(tokenId: string): Promise<ClobBook | null> {
   } catch {
     return null;
   }
+}
+
+function dedupeCandidates<T extends { market: { conditionId?: string; slug?: string } }>(candidates: T[]): T[] {
+  return [
+    ...new Map(candidates.map((candidate) => [candidate.market.conditionId ?? candidate.market.slug ?? JSON.stringify(candidate.market), candidate])).values(),
+  ];
+}
+
+function dedupeObservations(observations: ExternalMarketObservation[]): ExternalMarketObservation[] {
+  return [
+    ...new Map(
+      observations.map((observation) => [
+        `${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`,
+        observation,
+      ]),
+    ).values(),
+  ];
 }
 
 function newest(observations: ExternalMarketObservation[]): string | null {

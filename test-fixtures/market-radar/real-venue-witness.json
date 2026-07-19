@@ -2,7 +2,8 @@
   "witnessId": "world-cup-2026-argentina-outright-2026-07-19",
   "reviewedAt": "2026-07-19T03:00:00.000Z",
   "canonicalSelectionId": "fifa-world-cup-2026-winner:argentina",
-  "conclusion": "Exact overlap exists for Argentina to win the 2026 FIFA/Men's World Cup outright across SX Bet, Kalshi, and Polymarket. This is unrelated to the historical France-Spain fixture and is not mapped to TxLINE.",
+  "conclusion": "Exact overlap exists for ordinary Argentina-wins-2026-World-Cup semantics across SX Bet, Kalshi, and Polymarket. Exceptional cancellation and non-completion handling differs in public text and is documented as a limitation; the app uses this only for read-only paper routing, not settlement.",
+  "exceptionalResolutionConclusion": "Kalshi exposes a 2028 technical close/expiration while also exposing a 2026 expected expiration and early close after title holder declaration. Polymarket exposes an Other outcome for cancellation/not completed by 2026-10-13. SX Bet exposes NO_GAME in the public payload. These differences are visible in the witness and do not authorize settlement claims.",
   "observations": [
     {
       "venue": "SX Bet",

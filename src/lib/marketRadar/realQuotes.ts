@@ -5,57 +5,136 @@ import type { ObservationWithMapping, ProvenancedGenericQuote } from "./types";
 export const REAL_QUOTE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export type RealQuoteBuildResult =
-  | { status: "ready"; quotes: ProvenancedGenericQuote[]; canonicalSelectionId: string; labels: string[] }
-  | { status: "no-exact-overlap"; quotes: ProvenancedGenericQuote[]; reason: string }
-  | { status: "quotes-stale"; quotes: ProvenancedGenericQuote[]; reason: string };
+  | {
+      status: "ready-multi-venue";
+      quotes: ProvenancedGenericQuote[];
+      canonicalSelectionId: string;
+      reason: string;
+    }
+  | {
+      status: "single-venue";
+      quotes: ProvenancedGenericQuote[];
+      canonicalSelectionId: string;
+      reason: string;
+    }
+  | {
+      status: "no-exact-overlap";
+      quotes: ProvenancedGenericQuote[];
+      canonicalSelectionId: string | null;
+      reason: string;
+    }
+  | {
+      status: "quotes-stale";
+      quotes: ProvenancedGenericQuote[];
+      canonicalSelectionId: string;
+      reason: string;
+    }
+  | {
+      status: "captured-witness";
+      quotes: ProvenancedGenericQuote[];
+      canonicalSelectionId: string;
+      reason: string;
+    };
 
 export function buildRealExecutableQuotes({
   observations,
   now,
+  selectedCanonicalSelectionId,
   sourceStatuses,
 }: {
   observations: ObservationWithMapping[];
   now: number;
+  selectedCanonicalSelectionId: string | null;
   sourceStatuses?: Record<string, "live" | "captured">;
 }): RealQuoteBuildResult {
-  const exact = observations.filter((observation) => observation.mapping?.equivalence === "exact" && observation.mapping.canonicalSelectionId);
-  const bySelection = new Map<string, ObservationWithMapping[]>();
-  for (const observation of exact) {
-    const selectionId = observation.mapping?.canonicalSelectionId;
-    if (!selectionId) continue;
-    bySelection.set(selectionId, [...(bySelection.get(selectionId) ?? []), observation]);
+  if (!selectedCanonicalSelectionId) {
+    return {
+      status: "no-exact-overlap",
+      quotes: [],
+      canonicalSelectionId: null,
+      reason: "Select an exactly mapped market to compare real venues.",
+    };
   }
 
-  const group = [...bySelection.entries()]
-    .map(([selectionId, groupObservations]) => ({
-      selectionId,
-      observations: groupObservations,
-      venueCount: new Set(groupObservations.map((observation) => observation.venueId)).size,
-    }))
-    .sort((left, right) => right.venueCount - left.venueCount || left.selectionId.localeCompare(right.selectionId))[0];
+  const group = observations.filter(
+    (observation) =>
+      observation.mapping?.equivalence === "exact" &&
+      observation.mapping.canonicalSelectionId === selectedCanonicalSelectionId,
+  );
 
-  if (!group || group.venueCount < 2) {
-    return { status: "no-exact-overlap", quotes: [], reason: "No exact cross-venue overlap with two or more venues is currently available." };
+  if (group.length === 0) {
+    return {
+      status: "no-exact-overlap",
+      quotes: [],
+      canonicalSelectionId: selectedCanonicalSelectionId,
+      reason: "No exact cross-venue group exists for the selected market.",
+    };
   }
 
-  const quotes = group.observations
+  const allQuotes = group
     .map((observation) => toRealQuote(observation, sourceStatuses?.[observation.venueId] ?? "live"))
     .filter((quote): quote is ProvenancedGenericQuote => quote !== null);
-  if (quotes.length < 2 || new Set(quotes.map((quote) => quote.venueId)).size < 2) {
-    return { status: "no-exact-overlap", quotes, reason: "Exact peers exist, but fewer than two have valid executable asks and capacity." };
+  const capturedQuotes = allQuotes.filter((quote) => quote.provenance.status === "captured");
+  const liveQuotes = allQuotes.filter((quote) => quote.provenance.status === "live");
+  const freshLiveQuotes = liveQuotes.filter((quote) => quoteAgeMs(quote, now) <= REAL_QUOTE_MAX_AGE_MS);
+  const liveVenueCount = new Set(freshLiveQuotes.map((quote) => quote.venueId)).size;
+
+  if (liveVenueCount >= 2) {
+    return {
+      status: "ready-multi-venue",
+      quotes: sortQuotes(freshLiveQuotes),
+      canonicalSelectionId: selectedCanonicalSelectionId,
+      reason: "Two or more exact live venues are available.",
+    };
   }
 
-  const stale = quotes.filter((quote) => now - Date.parse(quote.provenance.observedAt) > REAL_QUOTE_MAX_AGE_MS);
-  if (stale.length > 0) {
-    return { status: "quotes-stale", quotes, reason: "Exact real quotes are stale; captured values are shown for evidence only." };
+  if (liveVenueCount === 1) {
+    return {
+      status: "single-venue",
+      quotes: sortQuotes(freshLiveQuotes),
+      canonicalSelectionId: selectedCanonicalSelectionId,
+      reason: "One exact live venue is available; cross-venue routing needs at least two venues.",
+    };
+  }
+
+  if (capturedQuotes.length > 0) {
+    return {
+      status: "captured-witness",
+      quotes: sortQuotes(capturedQuotes),
+      canonicalSelectionId: selectedCanonicalSelectionId,
+      reason: "Captured real quotes are shown for witness replay only; they are not current live capacity.",
+    };
+  }
+
+  if (liveQuotes.length > 0) {
+    return {
+      status: "quotes-stale",
+      quotes: sortQuotes(liveQuotes),
+      canonicalSelectionId: selectedCanonicalSelectionId,
+      reason: "Exact live quotes are stale or invalid; refresh before building a live route.",
+    };
   }
 
   return {
-    status: "ready",
-    quotes,
-    canonicalSelectionId: group.selectionId,
-    labels: group.observations.map((observation) => `${observation.venueLabel}: ${observation.outcomeLabel}`),
+    status: "no-exact-overlap",
+    quotes: [],
+    canonicalSelectionId: selectedCanonicalSelectionId,
+    reason: "Exact peers exist, but none have valid active executable asks and capacity.",
   };
+}
+
+export function quoteGroupSignature(result: RealQuoteBuildResult): string {
+  return JSON.stringify({
+    status: result.status,
+    canonicalSelectionId: result.canonicalSelectionId,
+    quotes: result.quotes.map((quote) => ({
+      quoteId: quote.quoteId,
+      odds: quote.decimalOdds,
+      capacity: quote.availableStake,
+      observedAt: quote.provenance.observedAt,
+      status: quote.provenance.status,
+    })),
+  });
 }
 
 export function buildRealPaperRoute(
@@ -72,6 +151,7 @@ function toRealQuote(observation: ObservationWithMapping, sourceStatus: "live" |
   if (
     mapping?.equivalence !== "exact" ||
     !mapping.canonicalSelectionId ||
+    !isActiveStatus(observation.rawStatus) ||
     probability === null ||
     probability <= 0 ||
     probability > 1 ||
@@ -80,6 +160,8 @@ function toRealQuote(observation: ObservationWithMapping, sourceStatus: "live" |
   ) {
     return null;
   }
+
+  const status = observation.rawStatus.toLowerCase().startsWith("captured") ? "captured" : sourceStatus;
 
   return {
     quoteId: `real:${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`,
@@ -97,7 +179,25 @@ function toRealQuote(observation: ObservationWithMapping, sourceStatus: "live" |
       mappingId: mapping.id,
       canonicalSelectionId: mapping.canonicalSelectionId,
       sourceUrl: observation.sourceUrl,
-      status: sourceStatus,
+      status,
     },
   };
+}
+
+function quoteAgeMs(quote: ProvenancedGenericQuote, now: number): number {
+  return Math.max(0, now - Date.parse(quote.provenance.observedAt));
+}
+
+function isActiveStatus(status: string): boolean {
+  const normalized = status.toLowerCase();
+  return normalized.includes("active") && !normalized.includes("closed") && !normalized.includes("inactive");
+}
+
+function sortQuotes(quotes: ProvenancedGenericQuote[]): ProvenancedGenericQuote[] {
+  return [...quotes].sort(
+    (left, right) =>
+      right.decimalOdds - left.decimalOdds ||
+      left.venueId.localeCompare(right.venueId) ||
+      left.quoteId.localeCompare(right.quoteId),
+  );
 }

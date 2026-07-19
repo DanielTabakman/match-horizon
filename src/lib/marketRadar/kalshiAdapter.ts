@@ -11,6 +11,7 @@ const TIMEOUT_MS = 5500;
 const CACHE_TTL_MS = 45_000;
 const MARKET_LIMIT = 25;
 const MAX_MARKETS = 8;
+const TARGET_TICKER = "KXMENWORLDCUP-26-AR";
 
 type KalshiMarketsResponse = { cursor?: string; markets?: KalshiMarket[] };
 
@@ -64,7 +65,11 @@ async function fetchLiveKalshiObservations(): Promise<ExternalMarketObservation[
     throw new Error("Kalshi markets response did not match expected shape.");
   }
 
-  const markets = response.markets.filter((market) => market.market_type === "binary").slice(0, MAX_MARKETS);
+  const targetMarket = response.markets.find((market) => market.ticker === TARGET_TICKER) ?? null;
+  const markets = dedupeMarkets([
+    ...response.markets.filter((market) => market.market_type === "binary").slice(0, MAX_MARKETS),
+    ...(targetMarket ? [targetMarket] : []),
+  ]);
   const observedAt = new Date().toISOString();
   const observations: ExternalMarketObservation[] = [];
   for (const market of markets) {
@@ -79,7 +84,31 @@ async function fetchLiveKalshiObservations(): Promise<ExternalMarketObservation[
   if (observations.length === 0) {
     throw new Error("Kalshi returned no public World Cup binary markets.");
   }
-  return observations;
+
+  if (!observations.some((observation) => observation.externalMarketId === TARGET_TICKER)) {
+    observations.push(
+      ...loadKalshiFixtureObservations()
+        .filter((observation) => observation.externalMarketId === TARGET_TICKER)
+        .map((observation) => ({ ...observation, rawStatus: `captured:${observation.rawStatus}` })),
+    );
+  }
+
+  return dedupeObservations(observations);
+}
+
+function dedupeMarkets(markets: KalshiMarket[]): KalshiMarket[] {
+  return [...new Map(markets.map((market) => [market.ticker, market])).values()];
+}
+
+function dedupeObservations(observations: ExternalMarketObservation[]): ExternalMarketObservation[] {
+  return [
+    ...new Map(
+      observations.map((observation) => [
+        `${observation.venueId}:${observation.externalMarketId}:${observation.externalOutcomeId}`,
+        observation,
+      ]),
+    ).values(),
+  ];
 }
 
 function newest(observations: ExternalMarketObservation[]): string | null {

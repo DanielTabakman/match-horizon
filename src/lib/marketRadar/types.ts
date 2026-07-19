@@ -35,6 +35,7 @@ export type MappingEquivalence = "exact" | "related" | "not-equivalent";
 export type MarketMapping = {
   id: string;
   canonicalSelectionId: string | null;
+  exceptionalResolution: "compatible" | "incompatible" | "unverified";
   txlineFixtureId: string | null;
   txlineOutcomeId: OutcomeQuote["outcomeId"] | null;
   venueId: string;
