@@ -37,8 +37,21 @@ export type HistoricalMarketSnapshot = {
 };
 
 const REQUIRED_OUTCOMES: OutcomeQuote["outcomeId"][] = ["participant_1", "draw", "participant_2"];
+const HISTORICAL_MARKET_OUTCOME_LABELS: Record<OutcomeQuote["outcomeId"], string> = {
+  participant_1: "France",
+  draw: "Draw",
+  participant_2: "Spain",
+};
 
 export const HISTORICAL_MARKET_SNAPSHOT = validateHistoricalMarketSnapshot(rawHistoricalMarketSnapshot);
+
+export function buildHistoricalMarketSelection(outcomeId: OutcomeQuote["outcomeId"]) {
+  return {
+    selectedOutcomeId: outcomeId,
+    selectedOutcomeLabel: HISTORICAL_MARKET_OUTCOME_LABELS[outcomeId],
+    selectedPriceHeader: `Selected ${HISTORICAL_MARKET_OUTCOME_LABELS[outcomeId]} price`,
+  };
+}
 
 export function validateHistoricalMarketSnapshot(value: unknown): HistoricalMarketSnapshot {
   if (!isRecord(value)) {

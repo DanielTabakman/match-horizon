@@ -35,6 +35,7 @@ import {
   isValidPaperQuoteInput,
 } from "../src/lib/execution/paperQuote";
 import {
+  buildHistoricalMarketSelection,
   HISTORICAL_MARKET_SNAPSHOT,
   HISTORICAL_MARKET_SOURCE_NOTE,
 } from "../src/lib/execution/historicalMarket";
@@ -596,8 +597,8 @@ function ExecutionAgentPanel({
             <div>
               <h3>Explore live Market Radar</h3>
               <p>
-                Radar imports read-only SX Bet and Polymarket observations. Those markets stay semantically separate
-                from this captured TxLINE fixture unless an explicit mapping says otherwise.
+                Radar imports read-only SX Bet, Kalshi, and Polymarket observations. Those markets stay semantically
+                separate from this captured TxLINE fixture unless an explicit mapping says otherwise.
               </p>
             </div>
             <Link className="button-secondary" href="/radar">Open Market Radar</Link>
@@ -612,7 +613,11 @@ function ExecutionAgentPanel({
               status={plan ? "Route built" : "Not built"}
               tone={plan ? "live" : "caution"}
             />
-            <HistoricalMarketSnapshotPanel outcomeQuotes={outcomeQuotes} />
+            <HistoricalMarketSnapshotPanel
+              outcomeQuotes={outcomeQuotes}
+              selectedOutcomeId={strongestPositive.outcomeId}
+              selectedOutcomeLabel={strongestPositive.label}
+            />
             <div className="execution-routing-grid">
               <div className="execution-table">
                 <div className="panel-heading">
@@ -984,7 +989,23 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HistoricalMarketSnapshotPanel({ outcomeQuotes }: { outcomeQuotes: SimulatedQuoteSummary[] }) {
+function HistoricalMarketSnapshotPanel({
+  outcomeQuotes,
+  selectedOutcomeId,
+  selectedOutcomeLabel,
+}: {
+  outcomeQuotes: SimulatedQuoteSummary[];
+  selectedOutcomeId: OutcomeQuote["outcomeId"];
+  selectedOutcomeLabel: string;
+}) {
+  const selection = buildHistoricalMarketSelection(selectedOutcomeId);
+  const displayOutcomeLabel =
+    selection.selectedOutcomeLabel === selectedOutcomeLabel ? selectedOutcomeLabel : selection.selectedOutcomeLabel;
+  const selectedPriceHeader =
+    selection.selectedOutcomeLabel === displayOutcomeLabel
+      ? selection.selectedPriceHeader
+      : `Selected ${displayOutcomeLabel} price`;
+
   return (
     <div className="historical-market-panel" aria-label="Historical market snapshot">
       <div className="panel-heading">
@@ -999,7 +1020,7 @@ function HistoricalMarketSnapshotPanel({ outcomeQuotes }: { outcomeQuotes: Simul
       </div>
 
       <div className="historical-market-meta">
-        <span>Full-time 1X2 · Closing</span>
+        <span>Full-time 1X2 - Closing</span>
         <span>Fixture {HISTORICAL_MARKET_SNAPSHOT.fixtureId}</span>
         <span>Kickoff {formatTimestamp(HISTORICAL_MARKET_SNAPSHOT.match.kickoff)}</span>
       </div>
@@ -1010,20 +1031,26 @@ function HistoricalMarketSnapshotPanel({ outcomeQuotes }: { outcomeQuotes: Simul
           <span>France</span>
           <span>Draw</span>
           <span>Spain</span>
-          <span>Selected Spain price</span>
+          <span>{selectedPriceHeader}</span>
           <span>Simulated capacity</span>
         </div>
         {HISTORICAL_MARKET_SNAPSHOT.bookmakers.map((bookmaker) => {
-          const spainQuote = outcomeQuotes.find((quote) => quote.venueId === bookmaker.id);
+          const selectedQuote = outcomeQuotes.find((quote) => quote.venueId === bookmaker.id);
 
           return (
             <div className="historical-market-row" key={bookmaker.id}>
               <strong>{bookmaker.name}</strong>
-              <HistoricalPrice value={bookmaker.prices.participant_1} />
-              <HistoricalPrice value={bookmaker.prices.draw} />
-              <HistoricalPrice value={bookmaker.prices.participant_2} selected />
-              <span>{formatDecimalOdds(bookmaker.prices.participant_2)}</span>
-              <span>{spainQuote ? formatCurrency(spainQuote.availableStake) : "-"}</span>
+              <HistoricalPrice value={bookmaker.prices.participant_1} selected={selectedOutcomeId === "participant_1"} />
+              <HistoricalPrice value={bookmaker.prices.draw} selected={selectedOutcomeId === "draw"} />
+              <HistoricalPrice value={bookmaker.prices.participant_2} selected={selectedOutcomeId === "participant_2"} />
+              <span className="selected-market-price">
+                <small>{selectedPriceHeader}</small>
+                <strong>{formatDecimalOdds(bookmaker.prices[selectedOutcomeId])}</strong>
+              </span>
+              <span className="historical-capacity-cell">
+                <small>Simulated capacity</small>
+                {selectedQuote ? formatCurrency(selectedQuote.availableStake) : "-"}
+              </span>
             </div>
           );
         })}

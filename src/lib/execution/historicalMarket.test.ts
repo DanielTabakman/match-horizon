@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildHistoricalMarketSelection,
   HISTORICAL_MARKET_SNAPSHOT,
   validateHistoricalMarketSnapshot,
 } from "./historicalMarket";
@@ -60,5 +61,23 @@ describe("historical market snapshot", () => {
         },
       }),
     ).toThrow(/provenanceType/);
+  });
+
+  it("maps selected domain outcomes to historical market labels", () => {
+    expect(buildHistoricalMarketSelection("participant_1")).toEqual({
+      selectedOutcomeId: "participant_1",
+      selectedOutcomeLabel: "France",
+      selectedPriceHeader: "Selected France price",
+    });
+    expect(buildHistoricalMarketSelection("draw")).toEqual({
+      selectedOutcomeId: "draw",
+      selectedOutcomeLabel: "Draw",
+      selectedPriceHeader: "Selected Draw price",
+    });
+    expect(buildHistoricalMarketSelection("participant_2")).toEqual({
+      selectedOutcomeId: "participant_2",
+      selectedOutcomeLabel: "Spain",
+      selectedPriceHeader: "Selected Spain price",
+    });
   });
 });

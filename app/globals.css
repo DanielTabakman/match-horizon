@@ -573,7 +573,6 @@ button:disabled {
   color: #59645b;
   font-size: 12px;
   font-weight: 900;
-  text-transform: uppercase;
 }
 
 .historical-price {
@@ -597,6 +596,20 @@ button:disabled {
 
 .historical-price.selected strong {
   color: #164f43;
+}
+
+.selected-market-price,
+.historical-capacity-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.selected-market-price small,
+.historical-capacity-cell small {
+  color: #59645b;
+  display: none;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .source-disclosure {
@@ -745,6 +758,11 @@ button:disabled {
 
   .historical-market-headings {
     display: none;
+  }
+
+  .selected-market-price small,
+  .historical-capacity-cell small {
+    display: block;
   }
 
   .paper-quote-controls {
