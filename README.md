@@ -18,14 +18,14 @@ The implemented judge flow is:
 4. See outcome-by-outcome disagreement, calculated as `user probability - market probability`.
 5. See the strongest positive disagreement and the plain match-result expression that represents it.
 6. Convert the selected belief into fair odds, required edge, calculated minimum odds, and a fractional Kelly sizing reference.
-7. Build a simulated execution route against generic venue liquidity using Kelly sizing by default or a manual stake alternative.
+7. Build a simulated execution route against sourced historical closing prices with visibly separate simulated capacity, using Kelly sizing by default or a manual stake alternative.
 8. Review routed fills, weighted-average odds, estimated payout, and user-belief expected return.
 9. Start the bundled deterministic replay.
 10. Use Start, Pause, Play, Restart, `1x`, and `4x` controls.
 11. Watch the replay reach the observed final result: France `0`, Spain `2`.
 12. Inspect the real TxLINE result receipt and the separately labeled simulated execution settlement.
 
-The product is read-only. The execution route and Kelly output are deterministic simulation references only: no wager is submitted, no external venue is contacted, and no real sportsbook or exchange name is used. Kelly sizing is based entirely on the user's probability estimate and is not bankroll advice. The app does not custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
+The product is read-only. The execution route and Kelly output are deterministic simulation references only: no wager is submitted and no external venue is contacted. Matchbook, Pinnacle, and William Hill appear only as sourced historical closing-price references for the completed France vs Spain fixture. Capacity, route fills, order transmission, custody, and settlement money are simulated. Kelly sizing is based entirely on the user's probability estimate and is not bankroll advice. The app does not custody funds, connect wallets, create accounts, run an order book, or provide bankroll advice.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ Normalized Match Horizon domain types
         |
         +--> deterministic replay timeline and receipt logic
         |
-        +--> simulated execution router and generic liquidity book
+        +--> simulated execution router and historical-price/simulated-capacity book
         |
         v
 Next.js app route and React client UI
@@ -54,7 +54,7 @@ Key boundaries:
 - UI components consume normalized `Fixture`, `MarketSnapshot`, `ScoreEvent`, and `ResultReceipt` domain types.
 - The deployed judge flow uses committed captures and makes no runtime TxLINE API request.
 - Local TxLINE probe and capture scripts are available for maintainers, but they require private environment variables and are not part of the public browser flow.
-- Simulated venue liquidity lives under `src/lib/execution` and is not TxLINE data.
+- Historical closing odds and simulated route capacity live under `src/lib/execution` and are not TxLINE data.
 - The simulated execution settlement is shown separately from the TxLINE result receipt.
 
 ## TxLINE Data Used
@@ -115,19 +115,36 @@ The replay is bundled so the demo works when no live match is available. `npm ru
 
 Earlier score-feed records are excluded when they predate the fixed initial market snapshot. Unknown scores stay unknown until an observed score total is present; the UI must not invent `0-0`.
 
-## Fixed Historical Market Limitation
+## Historical Market Snapshot
 
-Historical odds movement is not captured for this completed fixture. The replay keeps the real initial TxLINE market snapshot fixed while score and finalization events advance.
+Committed historical closing market fixture: `test-fixtures/historical-market/france-spain-18237038-closing-1x2.json`.
 
-This is intentional and documented. The app must not imply that it observed historical price movement after the initial capture.
+Historical closing odds captured from OddsLab (odds data attributed there to The Odds API). Capacity and fills are simulated.
+
+- Fixture id: `18237038`
+- Match: France vs Spain
+- Competition: FIFA World Cup 2026 semifinal
+- Kickoff: `2026-07-14T19:00:00Z`
+- Market: full-time 1X2
+- Timepoint: closing
+- Source: `https://market.oddslab.gg/leagues/world-cup-2026/matches/world_cup_2026-france-vs-spain`
+- Provenance: `historical-third-party-reference`
+
+| Bookmaker | France | Draw | Spain |
+| --- | ---: | ---: | ---: |
+| Matchbook | `2.72` | `3.00` | `3.25` |
+| Pinnacle | `2.60` | `3.03` | `3.23` |
+| William Hill | `2.38` | `3.10` | `3.00` |
+
+The replay still keeps the real initial TxLINE market probability snapshot fixed while score and finalization events advance. The app must not imply that it observed runtime bookmaker connections, live capacity, or historical TxLINE price movement after the initial capture.
 
 ## Simulated Execution Layer
 
-Issue #24 extends the deterministic execution-routing demo with required-edge pricing and fractional Kelly sizing. The pricing module converts the user's selected outcome probability into fair decimal odds, applies the required expected return to produce calculated minimum odds, and calculates Quarter, Half, or Full Kelly references from that minimum price. The router still validates the selected outcome, target stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the calculated minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple generic venues, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and expected return from the user's belief.
+Issue #24 extends the deterministic execution-routing demo with required-edge pricing and fractional Kelly sizing. Issue #40 replaces the anonymous default route prices with sourced historical closing 1X2 prices for Matchbook, Pinnacle, and William Hill while preserving the paper-only execution boundary. The pricing module converts the user's selected outcome probability into fair decimal odds, applies the required expected return to produce calculated minimum odds, and calculates Quarter, Half, or Full Kelly references from that minimum price. The router still validates the selected outcome, target stake, minimum decimal odds, user probability, and simulated quotes. It filters quotes for the strongest positive outcome, excludes quotes below the calculated minimum odds, sorts best odds first with deterministic venue and quote tie-breaks, fills across multiple paper quotes, supports partial fills, and calculates filled stake, unfilled stake, weighted-average odds, estimated gross payout, and expected return from the user's belief.
 
 Issue #30 adds a narrow presentation layer over the same engine: a Standard strategy preset, a Conservative strategy preset, a Custom mode for direct edits, and one optional manually entered paper prediction-market quote. The paper quote is off by default, is not live data, and only enters the available-liquidity display and router when the entered odds and size are valid.
 
-The committed demo liquidity is generic and simulated. It is not a TxLINE payload, not a sportsbook integration, and not an exchange integration.
+The committed default book uses historical closing prices and simulated capacity. It is not a TxLINE payload, not a sportsbook integration, and not an exchange integration.
 
 Default Spain route:
 
@@ -141,15 +158,15 @@ Default Spain route:
 - Full Kelly: `8.33%`
 - Applied Kelly: `4.17%`
 - Suggested stake: `$5,000`
-- Venue D quote at `2.10` is rejected because it is below the `2.20` minimum
-- `$500` at decimal odds `3.50`
-- `$2,000` at decimal odds `3.42`
-- `$2,500` at decimal odds `3.30`
+- Policy stress quote at `2.10` is rejected because it is below the `2.20` minimum
+- `$500` at Matchbook Spain historical closing odds `3.25`
+- `$2,000` at Pinnacle Spain historical closing odds `3.23`
+- `$2,500` at William Hill Spain historical closing odds `3.00`
 - Filled stake: `$5,000`
-- Weighted-average odds: `3.368`, displayed as `3.37`
-- Estimated gross payout: `$16,840`
+- Weighted-average odds: `3.117`, displayed as `3.12`
+- Estimated gross payout: `$15,585`
 
-The deliberately poor Venue D price makes the execution policy visible: it is excluded before routing, while the full `$5,000` target is filled across the three better venues. Manual sizing remains available by disabling Kelly sizing.
+The deliberately poor synthetic stress quote makes the execution policy visible: it is excluded before routing, while the full `$5,000` target is filled across the three historical-price references. Manual sizing remains available by disabling Kelly sizing.
 
 The Conservative preset applies a `15%` required edge, Quarter Kelly, and Kelly sizing. Custom preserves the currently displayed values when selected and allows direct edits to required edge, Kelly fraction, and Kelly/manual sizing mode.
 

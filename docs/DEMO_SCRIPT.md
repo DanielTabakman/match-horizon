@@ -62,16 +62,18 @@ Call out:
 - Full Kelly is `8.33%`, applied Half Kelly is `4.17%`, and the suggested stake is `$5,000`.
 - Kelly sizing is a simulation reference based on the user's probability, not a guarantee or recommendation.
 - Manual stake sizing remains available by disabling `Use Kelly sizing`.
-- The simulated liquidity uses generic venue names only.
+- The `Historical market snapshot` shows Matchbook, Pinnacle, and William Hill as sourced historical closing-price references, with each full France/Draw/Spain line.
+- The source note says: Historical closing odds captured from OddsLab (odds data attributed there to The Odds API). Capacity and fills are simulated.
+- Simulated capacity is shown in a separate column from the historical closing price.
 - Point briefly to `Prediction-market connections - Coming soon`; the optional paper quote is manually entered paper data, off by default, and not a live connector.
 - Build the route.
-- Venue D offers `2.10`, below the calculated `2.20` minimum, so the router rejects it.
-- The fills are `$500` at `3.50`, `$2,000` at `3.42`, and `$2,500` at `3.30`.
+- The synthetic stress quote offers `2.10`, below the calculated `2.20` minimum, so the router rejects it.
+- The fills are `$500` at Matchbook `3.25`, `$2,000` at Pinnacle `3.23`, and `$2,500` at William Hill `3.00`.
 - Filled stake is `$5,000`.
-- Weighted-average odds display as `3.37`.
-- Estimated gross payout is `$16,840`.
+- Weighted-average odds display as `3.12`.
+- Estimated gross payout is `$15,585`.
 
-"The venue quotes and order submission are simulated, but the pricing and routing calculations are real. Match Horizon turns my fifty-percent belief into 2.00 fair odds, adds my ten-percent required edge to get a 2.20 minimum, rejects a venue offering only 2.10, then takes the best eligible prices first until the Half Kelly target is filled."
+"The historical closing prices are sourced references, while capacity, fills, and order transmission are simulated. Match Horizon turns my fifty-percent belief into 2.00 fair odds, adds my ten-percent required edge to get a 2.20 minimum, rejects the synthetic stress quote at 2.10, then takes the best eligible historical Spain prices first until the Half Kelly target is filled."
 
 ## 2:35-3:20 - Deterministic Replay
 
@@ -86,7 +88,7 @@ Show:
 - Restart and note that it returns to the same beginning state.
 - Unknown scores remain unknown until TxLINE score totals appear.
 
-"The replay is bundled and deterministic so judges do not need a live match. The market remains the fixed initial captured snapshot because historical odds movement was not available for this completed fixture."
+"The replay is bundled and deterministic so judges do not need a live match. The TxLINE market probabilities remain fixed at the initial captured snapshot; the route uses a separate sourced historical closing market snapshot and simulated capacity."
 
 ## 3:20-4:05 - Final Result And Separate Settlement
 
@@ -123,14 +125,15 @@ Mention limitations:
 - One fixture: France vs Spain.
 - One market type: full-match three-way result.
 - Fixed initial market during replay.
-- Venue liquidity and order transmission are simulated.
+- Historical closing prices are sourced from OddsLab, with odds data attributed there to The Odds API.
+- Capacity, fills, order transmission, custody, and settlement money are simulated.
 - No proof payload identified yet.
 - No on-chain validation executed.
 - No wagering, wallet, custody, account, or database scope.
 
 ## 4:35-4:45 - Close
 
-"The complete loop is belief in, execution out: TxLINE market reference, personal belief, fair odds, required edge, Kelly sizing, routed liquidity, deterministic result, and a clear receipt. The router works today over simulated liquidity, and the next step is replacing each simulated venue with a real connector."
+"The complete loop is belief in, execution out: TxLINE market reference, personal belief, fair odds, required edge, Kelly sizing, historical-price paper route, deterministic result, and a clear receipt. The router works today over sourced historical prices and simulated capacity, and the next step is replacing paper capacity with real connector observations."
 
 Show:
 

@@ -31,7 +31,7 @@ describe("required-edge pricing", () => {
 
   it("calculates expected return at decimal odds", () => {
     expect(calculateExpectedReturn(0.5, 2.2)).toBeCloseTo(0.1);
-    expect(calculateExpectedReturn(0.5, 3.368)).toBeCloseTo(0.684);
+    expect(calculateExpectedReturn(0.5, 3.117)).toBeCloseTo(0.5585);
   });
 
   it("rejects invalid probability, edge, and odds", () => {
@@ -114,7 +114,7 @@ describe("fractional Kelly sizing", () => {
 });
 
 describe("default pricing policy with the router", () => {
-  it("produces the target stake, minimum odds, and existing Spain fills", () => {
+  it("produces the target stake, minimum odds, and sourced historical Spain fills", () => {
     const policy = calculateKellySizingPolicy({
       userProbability: 0.5,
       requiredEdge: 0.1,
@@ -134,12 +134,12 @@ describe("default pricing policy with the router", () => {
     expect(policy.minimumDecimalOdds).toBe(2.2);
     expect(route.requestedStake).toBe(5000);
     expect(route.fills).toMatchObject([
-      { quoteId: "spain-a", filledStake: 500, decimalOdds: 3.5 },
-      { quoteId: "spain-b", filledStake: 2000, decimalOdds: 3.42 },
-      { quoteId: "spain-c", filledStake: 2500, decimalOdds: 3.3 },
+      { quoteId: "spain-a", filledStake: 500, decimalOdds: 3.25 },
+      { quoteId: "spain-b", filledStake: 2000, decimalOdds: 3.23 },
+      { quoteId: "spain-c", filledStake: 2500, decimalOdds: 3 },
     ]);
-    expect(route.weightedAverageOdds).toBe(3.368);
-    expect(route.estimatedGrossPayout).toBe(16840);
+    expect(route.weightedAverageOdds).toBe(3.117);
+    expect(route.estimatedGrossPayout).toBe(15585);
   });
 
   it("changes the route invalidation key when pricing or sizing inputs change", () => {

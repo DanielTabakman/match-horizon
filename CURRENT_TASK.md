@@ -46,9 +46,9 @@ Default demo values:
 - full Kelly `8.33%`;
 - applied Half Kelly `4.17%`;
 - suggested stake `$5,000`;
-- fills at `3.50`, `3.42`, and `3.30`;
-- weighted odds `3.37`;
-- gross payout `$16,840`.
+- fills at Matchbook `3.25`, Pinnacle `3.23`, and William Hill `3.00`;
+- weighted odds `3.12`;
+- gross payout `$15,585`.
 
 ## Truth and safety boundary
 
@@ -82,7 +82,7 @@ Before recording, confirm:
 4. fair odds display `2.00`;
 5. required edge displays `10%` and minimum odds display `2.20`;
 6. Half Kelly displays `8.33%` full, `4.17%` applied, and `$5,000` suggested stake;
-7. the default route fills at `3.50`, `3.42`, and `3.30` with weighted odds `3.37` and payout `$16,840`;
+7. the default route fills at Matchbook `3.25`, Pinnacle `3.23`, and William Hill `3.00` with weighted odds `3.12` and payout `$15,585`;
 8. manual sizing appears when `Use Kelly sizing` is disabled;
 9. replay freezes the pricing, sizing, and route policy and reaches France `0`, Spain `2`;
 10. the TxLINE receipt retains exact proof and validation limits;

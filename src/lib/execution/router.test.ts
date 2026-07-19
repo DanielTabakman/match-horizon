@@ -20,14 +20,14 @@ describe("buildExecutionRoute", () => {
     const route = buildExecutionRoute(spainIntent, DEMO_LIQUIDITY_BOOK);
 
     expect(route.fills).toMatchObject([
-      { quoteId: "spain-a", venueLabel: "Paper Venue A", filledStake: 500, decimalOdds: 3.5 },
-      { quoteId: "spain-b", venueLabel: "Paper Venue B", filledStake: 2000, decimalOdds: 3.42 },
-      { quoteId: "spain-c", venueLabel: "Paper Venue C", filledStake: 2500, decimalOdds: 3.3 },
+      { quoteId: "spain-a", venueLabel: "Matchbook", filledStake: 500, decimalOdds: 3.25 },
+      { quoteId: "spain-b", venueLabel: "Pinnacle", filledStake: 2000, decimalOdds: 3.23 },
+      { quoteId: "spain-c", venueLabel: "William Hill", filledStake: 2500, decimalOdds: 3 },
     ]);
     expect(route.filledStake).toBe(5000);
     expect(route.unfilledStake).toBe(0);
-    expect(route.weightedAverageOdds).toBe(3.368);
-    expect(route.estimatedGrossPayout).toBe(16840);
+    expect(route.weightedAverageOdds).toBe(3.117);
+    expect(route.estimatedGrossPayout).toBe(15585);
   });
 
   it("keeps the historical fixture route economically identical through the generic kernel", () => {
@@ -69,7 +69,7 @@ describe("buildExecutionRoute", () => {
 
   it("reports unfilled stake when eligible liquidity is exhausted", () => {
     const route = buildExecutionRoute(
-      { ...spainIntent, requestedStake: 6000, minimumDecimalOdds: 3.3 },
+      { ...spainIntent, requestedStake: 6000, minimumDecimalOdds: 3 },
       DEMO_LIQUIDITY_BOOK,
     );
 
@@ -80,7 +80,7 @@ describe("buildExecutionRoute", () => {
   it("calculates expected value from the user's probability and filled stake", () => {
     const route = buildExecutionRoute(spainIntent, DEMO_LIQUIDITY_BOOK);
 
-    expect(route.expectedValue).toBe(3420);
+    expect(route.expectedValue).toBe(2792.5);
   });
 
   it("uses deterministic venue and quote ties after odds", () => {
