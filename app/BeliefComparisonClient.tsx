@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import replayCapture from "../test-fixtures/replay/france-spain-18237038.json";
 import type { Fixture, MarketSnapshot, OutcomeQuote } from "../src/lib/domain";
@@ -47,8 +48,8 @@ type Props = {
 };
 
 const DEFAULT_BELIEF: BeliefByOutcome = {
-  participant_1: 0.3,
-  draw: 0.2,
+  participant_1: 0.25,
+  draw: 0.25,
   participant_2: 0.5,
 };
 
@@ -93,11 +94,15 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
     <main className="shell">
       <section className="fixture-band" aria-labelledby="fixture-heading">
         <div>
-          <p className="eyebrow">World Cup fixture</p>
+          <p className="eyebrow">Fixture demo</p>
           <h1 id="fixture-heading">
             {fixture.participant1} vs {fixture.participant2}
           </h1>
           <p className="muted">
+            Compare a captured TxLINE result market with your own probabilities, build a simulated route, then replay
+            the real final result.
+          </p>
+          <p className="muted small-copy">
             Fixture {fixture.fixtureId}
             {fixture.startsAt ? ` - ${formatTimestamp(fixture.startsAt)}` : ""}
           </p>
@@ -105,106 +110,111 @@ function ReadyComparison({ fixture, market }: { fixture: Fixture; market: Market
         <div className="receipt">
           <span>TxLINE snapshot</span>
           <strong>{formatTimestamp(market.capturedAt)}</strong>
-          <Link href="/radar">Open Radar</Link>
+          <small>Captured market reference for this offline fixture.</small>
         </div>
       </section>
 
-      <section className="comparison-grid" aria-label="Market and belief comparison">
-        <div className="panel">
-          <div className="panel-heading">
-            <h2>Market probabilities</h2>
-            <span>Three-way result</span>
-          </div>
-          <div className="outcome-list">
-            {market.outcomes.map((outcome) => (
-              <MarketRow key={outcome.outcomeId} outcome={outcome} />
-            ))}
-          </div>
-        </div>
+      <section className="stage-panel" aria-labelledby="compare-stage-heading">
+        <StageHeader
+          id="compare-stage-heading"
+          step="1"
+          title="Compare belief"
+          guidance="Enter a clean 100% view and the app will surface the strongest positive disagreement."
+          status={totalIsValid ? "Ready" : "Needs 100% total"}
+          tone={totalIsValid ? "live" : "caution"}
+        />
 
-        <div className="panel">
-          <div className="panel-heading">
-            <h2>Your belief</h2>
-            <span className={totalIsValid ? "valid" : "invalid"}>
-              Total {totalPercent.toFixed(1)}%
-            </span>
-          </div>
-          <div className="belief-list">
-            {comparison.outcomes.map((outcome) => (
-              <label className="belief-row" key={outcome.outcomeId}>
-                <span>{outcome.label}</span>
-                <input
-                  aria-label={`${outcome.label} belief probability`}
-                  inputMode="decimal"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  type="number"
-                  value={(belief[outcome.outcomeId] * 100).toString()}
-                  onChange={(event) => updateBelief(outcome.outcomeId, event.target.value)}
-                />
-                <span>%</span>
-              </label>
-            ))}
-          </div>
-          {!totalIsValid ? (
-            <p className="validation" role="alert">
-              Enter a belief total of exactly 100% to compare outcomes.
-            </p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="panel results-panel" aria-label="Disagreement results">
-        <div className="panel-heading">
-          <h2>Disagreement</h2>
-          <span>{totalIsValid ? "Calculated" : "Waiting for 100%"}</span>
-        </div>
-        <div className="result-table">
-          <div className="result-row result-headings">
-            <span>Outcome</span>
-            <span>Market</span>
-            <span>Your belief</span>
-            <span>Difference</span>
-          </div>
-          {comparison.outcomes.map((outcome) => (
-            <div className="result-row" key={outcome.outcomeId}>
-              <span className="result-outcome">{outcome.label}</span>
-              <span>
-                <span className="result-label">Market</span>
-                {formatPercentage(outcome.marketProbability)}
-              </span>
-              <span>
-                <span className="result-label">Your belief</span>
-                {formatPercentage(outcome.beliefProbability)}
-              </span>
-              <strong>
-                <span className="result-label">Difference</span>
-                {totalIsValid ? formatDisagreementPoints(outcome.disagreementPoints) : "-"}
-              </strong>
+        <div className="comparison-grid" aria-label="Market and belief comparison">
+          <div className="panel">
+            <div className="panel-heading">
+              <h2>TxLINE market</h2>
+              <span>Three-way result</span>
             </div>
-          ))}
+            <div className="outcome-list">
+              {market.outcomes.map((outcome) => (
+                <MarketRow key={outcome.outcomeId} outcome={outcome} />
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-heading">
+              <h2>Your belief</h2>
+              <StatusBadge tone={totalIsValid ? "live" : "blocked"}>Total {totalPercent.toFixed(1)}%</StatusBadge>
+            </div>
+            <div className="belief-list">
+              {comparison.outcomes.map((outcome) => (
+                <label className="belief-row" key={outcome.outcomeId}>
+                  <span>{outcome.label}</span>
+                  <input
+                    aria-label={`${outcome.label} belief probability`}
+                    inputMode="decimal"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    type="number"
+                    value={(belief[outcome.outcomeId] * 100).toString()}
+                    onChange={(event) => updateBelief(outcome.outcomeId, event.target.value)}
+                  />
+                  <span>%</span>
+                </label>
+              ))}
+            </div>
+            {!totalIsValid ? (
+              <p className="validation" role="alert">
+                Enter a belief total of exactly 100% to compare outcomes.
+              </p>
+            ) : null}
+          </div>
         </div>
-        <div className="strongest">
-          <p className="eyebrow">Clearest available expression</p>
-          {totalIsValid && comparison.strongestPositive ? (
-            <>
-              <h3>{comparison.strongestPositive.label} match result</h3>
-              <p>
-                Your belief is {formatDisagreementPoints(comparison.strongestPositive.disagreementPoints)} above the
-                TxLINE market probability, making this the strongest positive disagreement in the three-way result
-                market.
-              </p>
-            </>
-          ) : (
-            <>
-              <h3>No positive disagreement</h3>
-              <p>
-                A result expression appears after your 100% belief assigns more probability than the market to at least
-                one outcome.
-              </p>
-            </>
-          )}
+
+        <div className="panel results-panel" aria-label="Disagreement results">
+          <div className="panel-heading">
+            <h2>Disagreement</h2>
+            <span>{totalIsValid ? "Calculated" : "Waiting for 100%"}</span>
+          </div>
+          <div className="result-table">
+            <div className="result-row result-headings">
+              <span>Outcome</span>
+              <span>Market</span>
+              <span>Your belief</span>
+              <span>Difference</span>
+            </div>
+            {comparison.outcomes.map((outcome) => (
+              <div className="result-row" key={outcome.outcomeId}>
+                <span className="result-outcome">{outcome.label}</span>
+                <span>
+                  <span className="result-label">Market</span>
+                  {formatPercentage(outcome.marketProbability)}
+                </span>
+                <span>
+                  <span className="result-label">Your belief</span>
+                  {formatPercentage(outcome.beliefProbability)}
+                </span>
+                <strong>
+                  <span className="result-label">Difference</span>
+                  {totalIsValid ? formatDisagreementPoints(outcome.disagreementPoints) : "-"}
+                </strong>
+              </div>
+            ))}
+          </div>
+          <div className="strongest">
+            <p className="eyebrow">Clearest available expression</p>
+            {totalIsValid && comparison.strongestPositive ? (
+              <>
+                <h3>{comparison.strongestPositive.label} match result</h3>
+                <p>
+                  Your belief is {formatDisagreementPoints(comparison.strongestPositive.disagreementPoints)} above the
+                  TxLINE market probability, making this the strongest positive disagreement.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3>No positive disagreement</h3>
+                <p>A result expression appears after your 100% belief is above the market on at least one outcome.</p>
+              </>
+            )}
+          </div>
         </div>
       </section>
 
@@ -390,29 +400,40 @@ function ExecutionAgentPanel({
   }
 
   return (
-    <section className="panel execution-panel" aria-label="Execution Agent">
-      <div className="panel-heading">
-        <div>
-          <h2>Execution Agent</h2>
-          <span>Simulated liquidity routing</span>
-        </div>
-        <strong className="simulation-badge">Simulation only - no wager submitted</strong>
-      </div>
+    <section className="stage-panel execution-panel" aria-labelledby="strategy-stage-heading">
+      <StageHeader
+        id="strategy-stage-heading"
+        step="2"
+        title="Set strategy"
+        guidance="Use the standard paper policy or adjust the visible pricing inputs before building a route."
+        status={canBuild ? "Ready to build" : "Needs a valid expression"}
+        tone={canBuild ? "live" : "caution"}
+      />
 
       {strongestPositive ? (
         <>
-          <div className="execution-summary">
-            <Metric label="Selected outcome" value={`${strongestPositive.label} match result`} />
-            <Metric label="Your probability" value={formatPercentage(strongestPositive.beliefProbability)} />
-            <Metric
-              label="Fair odds"
-              value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"}
-            />
-            <Metric label="TxLINE probability" value={formatPercentage(strongestPositive.marketProbability)} />
-            <Metric
-              label="Probability disagreement"
-              value={formatDisagreementPoints(strongestPositive.disagreementPoints)}
-            />
+          <div className="decision-summary" aria-label="Execution decision summary">
+            <div>
+              <p className="eyebrow">Paper decision</p>
+              <h3>{strongestPositive.label} match result</h3>
+              <p>
+                Simulation only. The route uses captured TxLINE probabilities and simulated liquidity; no wager is
+                submitted.
+              </p>
+            </div>
+            <div className="metric-grid">
+              <MetricCard label="Your probability" value={formatPercentage(strongestPositive.beliefProbability)} />
+              <MetricCard label="TxLINE probability" value={formatPercentage(strongestPositive.marketProbability)} />
+              <MetricCard label="Fair odds" value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"} />
+              <MetricCard
+                label="Minimum odds"
+                value={pricingPolicy ? formatDecimalOdds(pricingPolicy.minimumDecimalOdds) : "-"}
+              />
+              <MetricCard
+                label="Target stake"
+                value={Number.isFinite(targetStake) && targetStake > 0 ? formatCurrency(targetStake) : "-"}
+              />
+            </div>
           </div>
 
           <div className="execution-controls">
@@ -452,42 +473,7 @@ function ExecutionAgentPanel({
                 onChange={(event) => setBankroll(event.target.value)}
               />
             </label>
-            <label>
-              <span>Kelly fraction</span>
-              <select
-                aria-label="Kelly fraction"
-                value={kellyMultiplier}
-                onChange={(event) => setCustomKellyMultiplier(event.target.value as KellyMultiplier)}
-              >
-                <option value="quarter">Quarter Kelly</option>
-                <option value="half">Half Kelly</option>
-                <option value="full">Full Kelly</option>
-              </select>
-            </label>
-            <label className="toggle-control">
-              <input
-                aria-label="Use Kelly sizing"
-                type="checkbox"
-                checked={useKellySizing}
-                onChange={(event) => setCustomUseKellySizing(event.target.checked)}
-              />
-              <span>Use Kelly sizing</span>
-            </label>
-            {!useKellySizing ? (
-              <label>
-                <span>Manual requested stake</span>
-                <input
-                  aria-label="Manual requested stake"
-                  inputMode="decimal"
-                  min="1"
-                  step="100"
-                  type="number"
-                  value={manualStake}
-                  onChange={(event) => setManualStake(event.target.value)}
-                />
-              </label>
-            ) : null}
-            <button type="button" onClick={buildRoute} disabled={!canBuild}>
+            <button className="button-primary" type="button" onClick={buildRoute} disabled={!canBuild}>
               Build simulated route
             </button>
           </div>
@@ -495,42 +481,53 @@ function ExecutionAgentPanel({
             {selectedPreset.description}
           </p>
 
-          <div className="execution-totals pricing-policy">
-            <Metric label="Fair odds" value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"} />
-            <Metric
-              label="Calculated minimum odds"
-              value={pricingPolicy ? formatDecimalOdds(pricingPolicy.minimumDecimalOdds) : "-"}
-            />
-            <Metric
-              label="Full Kelly"
-              value={fullKellyFraction === null ? "-" : formatPrecisePercentage(fullKellyFraction)}
-            />
-            <Metric
-              label={`Applied ${labelKellyMultiplier(kellyMultiplier)}`}
-              value={kellyPolicy ? formatPrecisePercentage(kellyPolicy.appliedKellyFraction) : "-"}
-            />
-            <Metric
-              label={useKellySizing ? "Suggested stake" : "Manual target stake"}
-              value={Number.isFinite(targetStake) && targetStake > 0 ? formatCurrency(targetStake) : "-"}
-            />
-            <Metric label="Sizing mode" value={useKellySizing ? "Kelly" : "Manual"} />
-          </div>
-          <p className="execution-disclaimer">
-            Required edge is the minimum expected return implied by your probability. Kelly sizing is an educational
-            reference from your own belief, not a recommendation or guarantee.
-          </p>
-
-          <div className="paper-quote-panel">
-            <label className="toggle-control">
-              <input
-                aria-label="Include paper prediction-market quote"
-                type="checkbox"
-                checked={includePaperQuote}
-                onChange={(event) => setIncludePaperQuote(event.target.checked)}
-              />
-              <span>Include paper prediction-market quote</span>
-            </label>
-            <div className="paper-quote-controls">
+          <details className="advanced-panel">
+            <summary>Advanced execution inputs</summary>
+            <div className="advanced-grid">
+              <label>
+                <span>Kelly fraction</span>
+                <select
+                  aria-label="Kelly fraction"
+                  value={kellyMultiplier}
+                  onChange={(event) => setCustomKellyMultiplier(event.target.value as KellyMultiplier)}
+                >
+                  <option value="quarter">Quarter Kelly</option>
+                  <option value="half">Half Kelly</option>
+                  <option value="full">Full Kelly</option>
+                </select>
+              </label>
+              <label className="toggle-control">
+                <input
+                  aria-label="Use Kelly sizing"
+                  type="checkbox"
+                  checked={useKellySizing}
+                  onChange={(event) => setCustomUseKellySizing(event.target.checked)}
+                />
+                <span>Use Kelly sizing</span>
+              </label>
+              {!useKellySizing ? (
+                <label>
+                  <span>Manual requested stake</span>
+                  <input
+                    aria-label="Manual requested stake"
+                    inputMode="decimal"
+                    min="1"
+                    step="100"
+                    type="number"
+                    value={manualStake}
+                    onChange={(event) => setManualStake(event.target.value)}
+                  />
+                </label>
+              ) : null}
+              <label className="toggle-control">
+                <input
+                  aria-label="Include paper prediction-market quote"
+                  type="checkbox"
+                  checked={includePaperQuote}
+                  onChange={(event) => setIncludePaperQuote(event.target.checked)}
+                />
+                <span>Include paper prediction-market quote</span>
+              </label>
               <label>
                 <span>Paper decimal odds</span>
                 <input
@@ -557,90 +554,135 @@ function ExecutionAgentPanel({
               </label>
             </div>
             <p className="execution-disclaimer">
-              Manually entered paper data only. This is not a live market connection and cannot submit orders.
+              Kelly sizing is an educational reference from your own belief, not bankroll advice. Manually entered
+              paper quote data is not a live market connection and cannot submit orders.
             </p>
             {includePaperQuote && !paperQuoteIsValid ? (
               <p className="validation" role="alert">
                 Paper quote odds must be greater than 1 and available size must be greater than 0.
               </p>
             ) : null}
+          </details>
+
+          <details className="advanced-panel">
+            <summary>Secondary calculations</summary>
+            <div className="execution-totals pricing-policy">
+              <Metric label="Fair odds" value={pricingPolicy ? formatDecimalOdds(pricingPolicy.fairDecimalOdds) : "-"} />
+              <Metric
+                label="Calculated minimum odds"
+                value={pricingPolicy ? formatDecimalOdds(pricingPolicy.minimumDecimalOdds) : "-"}
+              />
+              <Metric
+                label="Full Kelly"
+                value={fullKellyFraction === null ? "-" : formatPrecisePercentage(fullKellyFraction)}
+              />
+              <Metric
+                label={`Applied ${labelKellyMultiplier(kellyMultiplier)}`}
+                value={kellyPolicy ? formatPrecisePercentage(kellyPolicy.appliedKellyFraction) : "-"}
+              />
+              <Metric
+                label={useKellySizing ? "Suggested stake" : "Manual target stake"}
+                value={Number.isFinite(targetStake) && targetStake > 0 ? formatCurrency(targetStake) : "-"}
+              />
+              <Metric label="Sizing mode" value={useKellySizing ? "Kelly" : "Manual"} />
+            </div>
+          </details>
+
+          <div className="radar-cta-panel">
+            <div>
+              <h3>Explore live Market Radar</h3>
+              <p>
+                Radar imports read-only SX Bet and Polymarket observations. Those markets stay semantically separate
+                from this captured TxLINE fixture unless an explicit mapping says otherwise.
+              </p>
+            </div>
+            <Link className="button-secondary" href="/radar">Open Market Radar</Link>
           </div>
 
-          <div className="coming-soon-panel">
-            <h3>Prediction-market connections &mdash; Coming soon</h3>
+          <section className="stage-panel route-stage" aria-labelledby="route-stage-heading">
+            <StageHeader
+              id="route-stage-heading"
+              step="3"
+              title="Build paper route"
+              guidance="Allocate the target stake across eligible simulated quotes at or above the minimum odds."
+              status={plan ? "Route built" : "Not built"}
+              tone={plan ? "live" : "caution"}
+            />
+            <div className="execution-routing-grid">
+              <div className="execution-table">
+                <div className="panel-heading">
+                  <h3>Available simulated liquidity</h3>
+                  <span>{outcomeQuotes.length} quotes</span>
+                </div>
+                {outcomeQuotes.map((quote) => (
+                  <div className="execution-row" key={quote.quoteId}>
+                    <span>{quote.venueLabel}</span>
+                    <strong>{formatDecimalOdds(quote.decimalOdds)}</strong>
+                    <span>{formatCurrency(quote.availableStake)}</span>
+                    <span
+                      className={
+                        pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds ? "valid" : "invalid"
+                      }
+                    >
+                      {pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds
+                        ? "Eligible"
+                        : "Below minimum"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="execution-table">
+                <div className="panel-heading">
+                  <h3>Routed fills</h3>
+                  <span>{plan ? `${plan.route.fills.length} fills` : "Waiting for build"}</span>
+                </div>
+                {plan && plan.route.fills.length > 0 ? (
+                  plan.route.fills.map((fill) => (
+                    <div className="execution-row" key={fill.quoteId}>
+                      <span>{fill.venueLabel}</span>
+                      <strong>{formatDecimalOdds(fill.decimalOdds)}</strong>
+                      <span>{formatCurrency(fill.filledStake)}</span>
+                      <span>{formatCurrency(fill.estimatedGrossPayout)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted">Use Build simulated route to allocate the default target stake.</p>
+                )}
+              </div>
+            </div>
+
+            {plan ? (
+              <div className="execution-totals">
+                <Metric label="Requested" value={formatCurrency(plan.route.requestedStake)} />
+                <Metric label="Filled" value={formatCurrency(plan.route.filledStake)} />
+                <Metric label="Unfilled" value={formatCurrency(plan.route.unfilledStake)} />
+                <Metric
+                  label="Weighted odds"
+                  value={
+                    plan.route.weightedAverageOdds === null ? "-" : formatDecimalOdds(plan.route.weightedAverageOdds)
+                  }
+                />
+                <Metric label="Gross payout" value={formatCurrency(plan.route.estimatedGrossPayout)} />
+                <Metric
+                  label="Expected return"
+                  value={
+                    plan.route.weightedAverageOdds === null
+                      ? "-"
+                      : formatPercentage(calculateExpectedReturn(plan.pricing.userProbability, plan.route.weightedAverageOdds))
+                  }
+                />
+              </div>
+            ) : null}
+          </section>
+
+          <div className="truth-panel">
+            <h3>Truth boundary</h3>
             <p>
-              The paper quote uses the same normalized pricing and routing path planned for read-only
-              prediction-market connectors. Future connectors will require explicit market and resolution-rule mapping
-              before prices can be compared. No live market, wallet, or order submission is connected in this demo.
+              TxLINE supplies the captured market reference and final result. Venue names, executable quotes, routing,
+              and settlement are simulated for paper analysis only.
             </p>
           </div>
-
-          <div className="execution-routing-grid">
-            <div className="execution-table">
-              <div className="panel-heading">
-                <h3>Available simulated liquidity</h3>
-                <span>{outcomeQuotes.length} quotes</span>
-              </div>
-              {outcomeQuotes.map((quote) => (
-                <div className="execution-row" key={quote.quoteId}>
-                  <span>{quote.venueLabel}</span>
-                  <strong>{formatDecimalOdds(quote.decimalOdds)}</strong>
-                  <span>{formatCurrency(quote.availableStake)}</span>
-                  <span
-                    className={
-                      pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds ? "valid" : "invalid"
-                    }
-                  >
-                    {pricingPolicy && quote.decimalOdds >= pricingPolicy.minimumDecimalOdds
-                      ? "Eligible"
-                      : "Below minimum"}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="execution-table">
-              <div className="panel-heading">
-                <h3>Actual routed fills</h3>
-                <span>{plan ? `${plan.route.fills.length} fills` : "Not built"}</span>
-              </div>
-              {plan && plan.route.fills.length > 0 ? (
-                plan.route.fills.map((fill) => (
-                  <div className="execution-row" key={fill.quoteId}>
-                    <span>{fill.venueLabel}</span>
-                    <strong>{formatDecimalOdds(fill.decimalOdds)}</strong>
-                    <span>{formatCurrency(fill.filledStake)}</span>
-                    <span>{formatCurrency(fill.estimatedGrossPayout)}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="muted">Build a route to allocate stake across eligible simulated quotes.</p>
-              )}
-            </div>
-          </div>
-
-          {plan ? (
-            <div className="execution-totals">
-              <Metric label="Requested" value={formatCurrency(plan.route.requestedStake)} />
-              <Metric label="Filled" value={formatCurrency(plan.route.filledStake)} />
-              <Metric label="Unfilled" value={formatCurrency(plan.route.unfilledStake)} />
-              <Metric
-                label="Weighted-average odds"
-                value={
-                  plan.route.weightedAverageOdds === null ? "-" : formatDecimalOdds(plan.route.weightedAverageOdds)
-                }
-              />
-              <Metric label="Estimated gross payout" value={formatCurrency(plan.route.estimatedGrossPayout)} />
-              <Metric
-                label="Expected return at routed odds"
-                value={
-                  plan.route.weightedAverageOdds === null
-                    ? "-"
-                    : formatPercentage(calculateExpectedReturn(plan.pricing.userProbability, plan.route.weightedAverageOdds))
-                }
-              />
-            </div>
-          ) : null}
         </>
       ) : (
         <p className="validation" role="alert">
@@ -710,14 +752,15 @@ function ReplayPanel({
   }
 
   return (
-    <section className="panel replay-panel" aria-label="Deterministic match replay">
-      <div className="panel-heading replay-heading">
-        <div>
-          <h2>Deterministic replay</h2>
-          <span>Committed offline France vs Spain fixture</span>
-        </div>
-        <span>{snapshot ? `Frozen ${formatTimestamp(snapshot.capturedAt)}` : "Ready to freeze expression"}</span>
-      </div>
+    <section className="stage-panel replay-panel" aria-labelledby="replay-stage-heading">
+      <StageHeader
+        id="replay-stage-heading"
+        step="4"
+        title="Replay result"
+        guidance="Freeze the belief, pricing policy, and paper route, then play the committed France vs Spain result."
+        status={snapshot ? `Frozen ${formatTimestamp(snapshot.capturedAt)}` : canStart ? "Ready to replay" : "Build route first"}
+        tone={snapshot || canStart ? "live" : "caution"}
+      />
 
       <div className="replay-layout">
         <div className="scoreboard" aria-live="polite">
@@ -729,7 +772,7 @@ function ReplayPanel({
 
         <div className="replay-controls">
           {!snapshot ? (
-            <button type="button" onClick={startReplay} disabled={!canStart}>
+            <button className="button-primary" type="button" onClick={startReplay} disabled={!canStart}>
               Start replay
             </button>
           ) : (
@@ -762,8 +805,9 @@ function ReplayPanel({
 
         {!canStart && !snapshot ? (
           <p className="validation" role="alert">
-            Enter a valid 100% belief with at least one positive disagreement to start the replay.
-            Build a simulated execution route before replay so the plan can be frozen.
+            {executionPlan
+              ? "Enter a valid 100% belief with at least one positive disagreement to start the replay."
+              : "Build a simulated execution route before replay so the plan can be frozen."}
           </p>
         ) : null}
 
@@ -889,6 +933,46 @@ function ResultReceiptPanel({
         />
       ) : null}
     </>
+  );
+}
+
+function StageHeader({
+  id,
+  step,
+  title,
+  guidance,
+  status,
+  tone,
+}: {
+  id: string;
+  step: string;
+  title: string;
+  guidance: string;
+  status: string;
+  tone: "live" | "caution" | "blocked";
+}) {
+  return (
+    <div className="stage-header">
+      <div className="stage-kicker">Stage {step}</div>
+      <div>
+        <h2 id={id}>{title}</h2>
+        <p>{guidance}</p>
+      </div>
+      <StatusBadge tone={tone}>{status}</StatusBadge>
+    </div>
+  );
+}
+
+function StatusBadge({ tone, children }: { tone: "live" | "caution" | "blocked"; children: ReactNode }) {
+  return <span className={`status-badge ${tone}`}>{children}</span>;
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
